@@ -8,7 +8,7 @@ independentes:
 ```
 apps/
 ├── web/    Frontend — Next.js 16, React 19, TypeScript, Tailwind CSS 4
-└── api/    Backend — ainda não implementado (ver apps/api/README.md)
+└── api/    Backend — Python, FastAPI, SQLAlchemy (ver apps/api/README.md)
 ```
 
 ## Começar
@@ -40,4 +40,4 @@ Para rodar um comando direto num pacote específico: `pnpm --filter web <script>
 
 - [`apps/web`](apps/web/README.md) — frontend (detalhes de arquitetura em
   [`apps/web/docs/ARCHITECTURE.md`](apps/web/docs/ARCHITECTURE.md))
-- [`apps/api`](apps/api/README.md) — backend (placeholder)
+- [`apps/api`](apps/api/README.md) — backend (Python/FastAPI, ambiente virtual próprio)

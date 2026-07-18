@@ -1,12 +1,36 @@
 # TimTim — API
 
-Backend ainda não implementado.
+Backend em Python (FastAPI), com SQLAlchemy para persistência.
 
-Este diretório é o slot reservado para o serviço de backend no workspace pnpm.
-Quando a stack for definida (Node/Hono, NestJS, outra linguagem, etc.), o serviço
-entra aqui como um pacote independente — com o seu próprio `package.json` — e passa
-a ser reconhecido automaticamente pelo `pnpm-workspace.yaml` (`apps/*`) na raiz.
+Este pacote não usa pnpm/Node — é um projeto Python isolado dentro do workspace,
+com seu próprio ambiente virtual. O `pnpm-workspace.yaml` na raiz só reconhece
+pacotes com `package.json`, então ele simplesmente ignora esta pasta.
 
-O frontend (`apps/web`) hoje usa apenas mocks estáticos (ver
-`apps/web/docs/ARCHITECTURE.md`, seção "Camada de dados"). Ligar a API real é uma
-mudança localizada nos módulos `data/` de cada feature — os componentes não mudam.
+## Estrutura
+
+```
+apps/api/
+├── .venv/            ambiente virtual (não versionado)
+├── requirements.txt
+└── app/
+    └── main.py       instância do FastAPI, CORS, rotas
+```
+
+## Começar
+
+```bash
+cd apps/api
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+API em http://localhost:8000 — CORS liberado para `http://localhost:3000` (o
+frontend em `apps/web`).
+
+## Próximos passos
+
+- Definir os models SQLAlchemy e a conexão com o banco de dados.
+- Ligar os módulos `data/` do frontend (ver `apps/web/docs/ARCHITECTURE.md`,
+  seção "Camada de dados") aos endpoints reais conforme forem criados.
