@@ -57,6 +57,7 @@ class Proposal(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     quote_request: Mapped["QuoteRequest"] = relationship(back_populates="proposals")
+    provider: Mapped["User"] = relationship()
     items: Mapped[list["ProposalItem"]] = relationship(
         back_populates="proposal", cascade="all, delete-orphan"
     )

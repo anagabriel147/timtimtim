@@ -1,13 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useRouter } from 'next/navigation'
 
 import {
   ArrowRight,
   Banknote,
-  BadgeCheck,
   Calendar,
   Check,
   ChevronDown,
@@ -32,9 +31,21 @@ import {
 
 import { AppTopbar } from '@/components/layout/app-topbar'
 import { Button } from '@/components/ui/button'
+import { useContracts } from '@/features/contratos'
+import { createDispute } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 import { DISPUTE_DATA as D } from '../data/dispute-data'
+
+const CATEGORY_TO_ENUM: Record<string, string> = {
+  'Serviço não entregue': 'servico_nao_entregue',
+  'Qualidade abaixo do contratado': 'qualidade_abaixo',
+  'Atraso ou descumprimento de prazo': 'atraso_descumprimento',
+  'Cobrança indevida': 'cobranca_indevida',
+  'Cancelamento unilateral': 'cancelamento_unilateral',
+  'Danos materiais no evento': 'danos_materiais',
+  Outro: 'outro',
+}
 
 const RES_ICONS = { banknote: Banknote, coins: Coins, 'rotate-ccw': RotateCcw } as const
 const SEV_ICONS = {
@@ -86,24 +97,39 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 export function DisputeClient() {
   const router = useRouter()
+  const { contracts, loading: contractsLoading } = useContracts()
 
-  const [contractId, setContractId] = useState('ct-089')
-  const [disputeValue, setDisputeValue] = useState('12000')
-  const [incidentDate, setIncidentDate] = useState('2025-06-14')
+  const [contractId, setContractId] = useState('')
+  const [disputeValue, setDisputeValue] = useState('0')
+  const [incidentDate, setIncidentDate] = useState('')
   const [category, setCategory] = useState('')
   const [severity, setSeverity] = useState('medio')
   const [statement, setStatement] = useState('')
   const [files, setFiles] = useState(D.uploadedFiles.map((f) => f.id))
   const [resolution, setResolution] = useState('total')
-  const [requestedValue, setRequestedValue] = useState('12000')
+  const [requestedValue, setRequestedValue] = useState('0')
   const [notes, setNotes] = useState('')
   const [legal, setLegal] = useState<boolean[]>([false, false, false])
   const [submitted, setSubmitted] = useState(false)
   const [draftSaved, setDraftSaved] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [disputeId, setDisputeId] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (contracts.length > 0 && !contractId) {
+      setContractId(contracts[0].id)
+      const raw = Number.parseFloat(contracts[0].value.replace(/[^\d,]/g, '').replace(',', '.'))
+      if (!Number.isNaN(raw)) {
+        setDisputeValue(String(raw))
+        setRequestedValue(String(raw))
+      }
+    }
+  }, [contracts, contractId])
 
   const contract = useMemo(
-    () => D.contracts.find((c) => c.id === contractId) ?? D.contracts[0],
-    [contractId],
+    () => contracts.find((c) => c.id === contractId) ?? contracts[0],
+    [contractId, contracts],
   )
 
   const charCount = statement.length
@@ -116,10 +142,55 @@ export function DisputeClient() {
 
   const removeFile = (id: string) => setFiles((prev) => prev.filter((f) => f !== id))
 
-  function handleSubmit() {
-    if (!canSubmit) return
-    setSubmitted(true)
-    setTimeout(() => router.push('/contratante/contratos'), 2600)
+  async function handleSubmit() {
+    if (!canSubmit || !contract) return
+    setSubmitError(null)
+    setSubmitting(true)
+    try {
+      const created = await createDispute({
+        contract_id: Number(contractId),
+        category: CATEGORY_TO_ENUM[category] ?? 'outro',
+        severity,
+        incident_date: incidentDate || null,
+        statement_text: statement,
+        requested_resolution: resolution,
+        requested_value: Number(requestedValue) || null,
+      })
+      setDisputeId(created.id)
+      setSubmitted(true)
+      setTimeout(() => router.push('/contratante/contratos'), 2600)
+    } catch {
+      setSubmitError('Não foi possível enviar a disputa. Tente novamente.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (contractsLoading) {
+    return (
+      <div className="bg-background flex min-h-svh flex-col">
+        <AppTopbar activeLabel="Disputas" />
+        <main className="text-muted-foreground mx-auto w-full max-w-3xl px-6 py-16 text-center text-sm">
+          Carregando...
+        </main>
+      </div>
+    )
+  }
+
+  if (!contract) {
+    return (
+      <div className="bg-background flex min-h-svh flex-col">
+        <AppTopbar activeLabel="Disputas" />
+        <main className="mx-auto w-full max-w-3xl px-6 py-16 text-center">
+          <p className="text-foreground font-display text-xl font-semibold">
+            Você ainda não tem contratos
+          </p>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Uma disputa precisa estar vinculada a um contrato existente.
+          </p>
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -214,18 +285,21 @@ export function DisputeClient() {
               <select
                 value={contractId}
                 onChange={(e) => {
-                  const c = D.contracts.find((x) => x.id === e.target.value)
+                  const c = contracts.find((x) => x.id === e.target.value)
                   setContractId(e.target.value)
                   if (c) {
-                    setDisputeValue(String(c.valueNumber))
-                    setRequestedValue(String(c.valueNumber))
+                    const raw = Number.parseFloat(c.value.replace(/[^\d,]/g, '').replace(',', '.'))
+                    if (!Number.isNaN(raw)) {
+                      setDisputeValue(String(raw))
+                      setRequestedValue(String(raw))
+                    }
                   }
                 }}
                 className="border-l-primary border-border bg-input text-foreground focus:ring-primary w-full appearance-none rounded-lg border-y border-r border-l-2 px-4 py-3 text-sm outline-none focus:ring-1"
               >
-                {D.contracts.map((c) => (
+                {contracts.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.code} — {c.event}
+                    {c.contractCode} — {c.event}
                   </option>
                 ))}
               </select>
@@ -250,12 +324,6 @@ export function DisputeClient() {
                 </p>
                 <p className="text-primary text-sm font-medium">{contract.value}</p>
               </div>
-              {contract.verified && (
-                <span className="border-primary/30 bg-primary/10 text-primary ml-auto inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium">
-                  <BadgeCheck className="size-3.5" />
-                  Verificado
-                </span>
-              )}
             </div>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -536,7 +604,7 @@ export function DisputeClient() {
                 />
               </div>
               <p className="text-muted-foreground mt-1 text-[11px]">
-                Máximo: {contract.value},00 (valor total do contrato)
+                Máximo: {contract?.value} (valor total do contrato)
               </p>
             </div>
 
@@ -641,15 +709,20 @@ export function DisputeClient() {
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={!canSubmit}
+                disabled={!canSubmit || submitting}
                 className="h-11 gap-2 text-sm font-semibold"
               >
                 {submitted ? <Check className="size-4" /> : <Send className="size-4" />}
-                {submitted ? 'Disputa enviada!' : 'Enviar Disputa para Arbitragem'}
-                {!submitted && <ArrowRight className="size-4" />}
+                {submitted
+                  ? 'Disputa enviada!'
+                  : submitting
+                    ? 'Enviando...'
+                    : 'Enviar Disputa para Arbitragem'}
+                {!submitted && !submitting && <ArrowRight className="size-4" />}
               </Button>
             </div>
           </div>
+          {submitError && <p className="text-destructive text-[11px]">{submitError}</p>}
           <p className="text-muted-foreground flex items-center gap-1.5 text-[11px]">
             <TriangleAlert className="size-3.5 text-amber-400" />
             Ao enviar, sua disputa ficará bloqueada para edição. O fornecedor será notificado e terá{' '}
@@ -670,7 +743,7 @@ export function DisputeClient() {
               Disputa enviada para arbitragem
             </h2>
             <p className="text-muted-foreground mt-2 text-sm">
-              Protocolo <span className="text-primary font-medium">#DP-2025-0142</span> criado. O
+              Protocolo <span className="text-primary font-medium">#DP-{disputeId}</span> criado. O
               fornecedor {contract.vendor} foi notificado e tem 72 horas para responder.
             </p>
             <p className="text-muted-foreground mt-4 text-xs">

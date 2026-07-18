@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import models  # noqa: F401 — garante que todas as tabelas registrem no Base.metadata
 from app.db import Base, engine
-from app.routers import auth
+from app.routers import auth, catalog, contracts, disputes, events, proposals, reviews
 
 
 @asynccontextmanager
@@ -25,6 +25,12 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(catalog.router)
+app.include_router(events.router)
+app.include_router(proposals.router)
+app.include_router(contracts.router)
+app.include_router(disputes.router)
+app.include_router(reviews.router)
 
 
 @app.get("/")

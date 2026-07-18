@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useRouter } from 'next/navigation'
+
+import { createEvent, listCategories, type ServiceCategory } from '@/lib/api'
 
 import { EVENT_TYPES } from '../../data/wizard-data'
 
@@ -17,6 +19,15 @@ export function EventWizard() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [published, setPublished] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [publishError, setPublishError] = useState<string | null>(null)
+  const [categories, setCategories] = useState<ServiceCategory[]>([])
+
+  useEffect(() => {
+    listCategories()
+      .then(setCategories)
+      .catch(() => setCategories([]))
+  }, [])
 
   // Step 1 — O Grande Dia
   const [eventType, setEventType] = useState('casamento')
@@ -47,6 +58,34 @@ export function EventWizard() {
 
   function cancel() {
     router.push('/contratante')
+  }
+
+  async function publish() {
+    setPublishing(true)
+    setPublishError(null)
+    try {
+      const categoryIds = categories.filter((c) => services.includes(c.slug)).map((c) => c.id)
+
+      await createEvent({
+        type: eventType,
+        name: displayName,
+        event_date: date || null,
+        guests_count: guests,
+        notes: notes || null,
+        country,
+        district,
+        city,
+        venue_name: venueName || null,
+        address: address || null,
+        venue_status: venueStatus,
+        service_category_ids: categoryIds,
+      })
+      setPublished(true)
+    } catch {
+      setPublishError('Não foi possível publicar o evento. Tente novamente.')
+    } finally {
+      setPublishing(false)
+    }
   }
 
   if (published) {
@@ -106,7 +145,9 @@ export function EventWizard() {
             observations={observations}
             setObservations={setObservations}
             onCancel={cancel}
-            onPublish={() => setPublished(true)}
+            onPublish={publish}
+            publishing={publishing}
+            publishError={publishError}
           />
         )}
       </main>

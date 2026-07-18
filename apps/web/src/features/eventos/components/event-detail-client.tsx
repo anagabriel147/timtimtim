@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 
 import {
   BadgeCheck,
@@ -29,18 +29,45 @@ import {
 import { AppTopbar } from '@/components/layout/app-topbar'
 import { Button } from '@/components/ui/button'
 import { useContracts } from '@/features/contratos'
+import {
+  acceptProposal,
+  type Event as ApiEvent,
+  getEvent,
+  listProposals,
+  type Proposal,
+  rejectProposal,
+} from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-import {
-  BUDGET_ROWS,
-  DISTRIBUTION,
-  EVENT,
-  QUICK_ACTIONS,
-  STATS,
-  type BudgetRow,
-} from '../data/event-detail-data'
+import { DISTRIBUTION, QUICK_ACTIONS, STATS, type BudgetRow } from '../data/event-detail-data'
 
 import { PaymentModal, type PendingPayment } from './payment-modal'
+
+function formatCurrency(value: string): string {
+  const n = Number.parseFloat(value)
+  if (Number.isNaN(n)) return value
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function proposalToRow(p: Proposal): BudgetRow | null {
+  if (p.status === 'recusada') return null
+  const isContract = p.status === 'contrato' || p.status === 'finalizada'
+  return {
+    id: String(p.id),
+    status: isContract ? 'contratado' : 'disponivel',
+    statusLabel: isContract ? 'CONTRATADO · CONFIRMADO' : 'PROPOSTA DISPONÍVEL',
+    vendor: p.provider_name,
+    avatar: p.provider_avatar ?? '',
+    verified: false,
+    category: p.title,
+    rating: '',
+    meta: p.payment_term ?? 'Proposta enviada',
+    metrics: [{ label: 'Valor proposto', value: formatCurrency(p.amount), tone: 'primary' }],
+    primaryAction: isContract ? undefined : 'Ver Proposta no Chat',
+    secondaryActions: isContract ? undefined : ['Aceitar', 'Recusar'],
+    contractAction: isContract ? 'Ver Contrato' : undefined,
+  }
+}
 
 const TONE_TEXT: Record<string, string> = {
   primary: 'text-primary',
@@ -89,9 +116,14 @@ const QUICK_ICONS = { search: Search, message: MessageSquare } as const
 
 export function EventDetailClient() {
   const router = useRouter()
-  const { addContract } = useContracts()
+  const params = useParams<{ id: string }>()
+  const eventId = Number(params.id)
+  const { refresh: refreshContracts } = useContracts()
   const [toast, setToast] = useState<string | null>(null)
   const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null)
+  const [apiEvent, setApiEvent] = useState<ApiEvent | null>(null)
+  const [proposals, setProposals] = useState<Proposal[]>([])
+  const [loading, setLoading] = useState(true)
   // per-row local status overrides for interactivity
   const [rowState, setRowState] = useState<Record<string, 'rejected' | 'accepted' | 'reminded'>>({})
 
@@ -101,10 +133,79 @@ export function EventDetailClient() {
     return () => clearTimeout(t)
   }, [toast])
 
+  useEffect(() => {
+    if (!eventId) {
+      setLoading(false)
+      return
+    }
+    Promise.all([getEvent(eventId), listProposals(eventId)])
+      .then(([fetchedEvent, fetchedProposals]) => {
+        setApiEvent(fetchedEvent)
+        setProposals(fetchedProposals)
+      })
+      .finally(() => setLoading(false))
+  }, [eventId])
+
   const flash = (msg: string) => setToast(msg)
 
   const goChat = () => {
     router.push('/contratante/mensagens')
+  }
+
+  if (loading) {
+    return (
+      <div className="text-muted-foreground mx-auto w-full max-w-7xl px-6 py-8 text-sm">
+        Carregando...
+      </div>
+    )
+  }
+
+  if (!apiEvent) {
+    return (
+      <div className="text-muted-foreground mx-auto w-full max-w-7xl px-6 py-8 text-sm">
+        Evento não encontrado.
+      </div>
+    )
+  }
+
+  const daysLeft = apiEvent.event_date
+    ? Math.max(0, Math.ceil((new Date(apiEvent.event_date).getTime() - Date.now()) / 86_400_000))
+    : 0
+  const activeProposals = proposals.filter((p) => p.status === 'analise')
+  const acceptedProposals = proposals.filter((p) => p.status === 'contrato')
+
+  const EVENT = {
+    breadcrumb: ['MEUS EVENTOS', apiEvent.type],
+    title: apiEvent.name,
+    daysBadge: `${daysLeft} dias restantes`,
+    date: apiEvent.event_date
+      ? new Date(apiEvent.event_date).toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+        })
+      : 'Data a definir',
+    location: [apiEvent.city, apiEvent.country].filter(Boolean).join(', ') || 'Local a definir',
+    guests: apiEvent.guests_count ? `${apiEvent.guests_count} convidados` : 'Convidados a definir',
+    progress:
+      proposals.length > 0 ? Math.round((acceptedProposals.length / proposals.length) * 100) : 0,
+    progressLegend: [
+      { label: `${acceptedProposals.length} fornecedores confirmados`, tone: 'primary' },
+      { label: `${activeProposals.length} propostas em análise`, tone: 'amber' },
+    ],
+  }
+
+  const BUDGET_ROWS = proposals.map(proposalToRow).filter((r): r is BudgetRow => r !== null)
+
+  const acceptProposalRow = async (proposalId: number) => {
+    try {
+      await acceptProposal(proposalId)
+      refreshContracts()
+      setRowState((s) => ({ ...s, [String(proposalId)]: 'accepted' }))
+      router.push('/contratante/contratos')
+    } catch {
+      flash('Não foi possível aceitar a proposta. Tente novamente.')
+    }
   }
 
   return (
@@ -295,6 +396,7 @@ export function EventDetailClient() {
                   }}
                   onSecondary={(action) => {
                     if (action === 'Recusar') {
+                      rejectProposal(Number(row.id)).catch(() => {})
                       setRowState((s) => ({ ...s, [row.id]: 'rejected' }))
                       flash(`Proposta de ${row.vendor} recusada.`)
                     } else if (action.startsWith('Aceitar')) {
@@ -408,18 +510,8 @@ export function EventDetailClient() {
         payment={pendingPayment}
         onClose={() => setPendingPayment(null)}
         onApproved={(p) => {
-          setRowState((s) => ({ ...s, [p.id]: 'accepted' }))
-          addContract({
-            id: p.id,
-            vendor: p.vendor,
-            event: p.event,
-            category: p.category,
-            avatar: p.avatar,
-            value: p.value,
-            location: p.location,
-          })
           setPendingPayment(null)
-          router.push('/contratante/contratos')
+          acceptProposalRow(Number(p.id))
         }}
       />
     </div>

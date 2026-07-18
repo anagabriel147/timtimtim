@@ -19,6 +19,8 @@ export function StepThree(props: {
   setObservations: (v: string) => void
   onCancel: () => void
   onPublish: () => void
+  publishing?: boolean
+  publishError?: string | null
 }) {
   const count = props.services.length
   const total = SERVICE_CATEGORIES.length
@@ -180,7 +182,13 @@ export function StepThree(props: {
           Cancelar
         </Button>
         <div className="flex items-center gap-4">
-          {count === 0 && (
+          {props.publishError && (
+            <span className="text-destructive hidden items-center gap-1.5 text-xs sm:flex">
+              <CircleHelp className="size-3.5" />
+              {props.publishError}
+            </span>
+          )}
+          {!props.publishError && count === 0 && (
             <span className="text-muted-foreground hidden items-center gap-1.5 text-xs sm:flex">
               <CircleHelp className="size-3.5" />
               Selecione pelo menos 1 serviço
@@ -188,10 +196,10 @@ export function StepThree(props: {
           )}
           <Button
             onClick={props.onPublish}
-            disabled={count === 0}
+            disabled={count === 0 || props.publishing}
             className="h-12 gap-2 px-8 text-sm font-semibold"
           >
-            Publicar Evento
+            {props.publishing ? 'Publicando...' : 'Publicar Evento'}
             <ArrowRight className="size-4" />
           </Button>
         </div>

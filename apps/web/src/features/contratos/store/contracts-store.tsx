@@ -1,76 +1,80 @@
 'use client'
 
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
-import { INITIAL_CONTRACTS, type Contract } from '../data/contracts-data'
+import { type Contract as ApiContract, listContracts } from '@/lib/api'
 
-type NewContractInput = {
-  id: string
-  vendor: string
-  event: string
-  category: string
-  avatar: string
-  value: string
-  location?: string
-  date?: string
-}
+import type { Contract } from '../types'
 
 type ContractsContextValue = {
   contracts: Contract[]
-  addContract: (input: NewContractInput) => boolean
+  loading: boolean
+  refresh: () => void
   hasContract: (id: string) => boolean
 }
 
 const ContractsContext = createContext<ContractsContextValue | null>(null)
 
-const CATEGORY_ICONS: Record<string, string> = {
-  Decoração: 'flower',
-  Buffet: 'cake',
-  'Música & Som': 'music',
-  Iluminação: 'lightbulb',
-  Fotografia: 'camera',
+const RECEIPT_META: Record<Contract['paymentStatus'], { label: string; caption: string }> = {
+  garantido: { label: 'Pagamento em custódia', caption: 'Garantido' },
+  quitado: { label: 'Pagamento liberado', caption: 'Quitado' },
+  aguardando: { label: 'Aguardando pagamento', caption: 'Pendente' },
+  cancelado: { label: 'Reembolso processado', caption: 'Contrato encerrado' },
+}
+
+function formatCurrency(value: string): string {
+  const n = Number.parseFloat(value)
+  if (Number.isNaN(n)) return value
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function adapt(c: ApiContract): Contract {
+  const receipt = RECEIPT_META[c.payment_status as Contract['paymentStatus']]
+  return {
+    id: String(c.id),
+    contractCode: c.contract_code,
+    vendor: c.provider_name,
+    event: c.event_name,
+    category: '',
+    avatar: c.provider_avatar ?? '',
+    icon: 'file',
+    date: new Date(c.created_at).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }),
+    location: c.event_city ?? '',
+    value: formatCurrency(c.value),
+    installments: `${c.installments_count}x`,
+    receiptLabel: receipt?.label ?? '',
+    receiptCaption: receipt?.caption ?? '',
+    serviceStatus: c.service_status as Contract['serviceStatus'],
+    paymentStatus: c.payment_status as Contract['paymentStatus'],
+    createdAt: new Date(c.created_at).getTime(),
+  }
 }
 
 export function ContractsProvider({ children }: { children: React.ReactNode }) {
-  const [contracts, setContracts] = useState<Contract[]>(() =>
-    INITIAL_CONTRACTS.map((c) => ({ ...c })),
-  )
+  const [contracts, setContracts] = useState<Contract[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const refresh = useCallback(() => {
+    setLoading(true)
+    listContracts()
+      .then((fetched) => setContracts(fetched.map(adapt)))
+      .catch(() => setContracts([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    refresh()
+  }, [refresh])
 
   const hasContract = useCallback((id: string) => contracts.some((c) => c.id === id), [contracts])
 
-  const addContract = useCallback((input: NewContractInput) => {
-    let added = false
-    setContracts((prev) => {
-      if (prev.some((c) => c.id === input.id)) return prev
-      added = true
-      const seq = String(prev.length + 42).padStart(4, '0')
-      const contract: Contract = {
-        id: input.id,
-        contractCode: `#TT-2025-${seq}`,
-        vendor: input.vendor,
-        event: input.event,
-        category: input.category,
-        avatar: input.avatar,
-        icon: CATEGORY_ICONS[input.category] ?? 'file',
-        date: input.date ?? '15 Nov 2025',
-        location: input.location ?? 'São Paulo, SP',
-        value: input.value,
-        installments: '3 parcelas',
-        receiptLabel: 'Aguardando 1º pagamento',
-        receiptCaption: '0% garantido',
-        // A freshly accepted proposal: service confirmed, payment being secured.
-        serviceStatus: 'confirmado',
-        paymentStatus: 'aguardando',
-        createdAt: Date.now(),
-      }
-      return [contract, ...prev]
-    })
-    return added
-  }, [])
-
   const value = useMemo(
-    () => ({ contracts, addContract, hasContract }),
-    [contracts, addContract, hasContract],
+    () => ({ contracts, loading, refresh, hasContract }),
+    [contracts, loading, refresh, hasContract],
   )
 
   return <ContractsContext.Provider value={value}>{children}</ContractsContext.Provider>

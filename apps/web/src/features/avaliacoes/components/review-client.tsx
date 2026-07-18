@@ -38,6 +38,7 @@ import {
 import { AppTopbar } from '@/components/layout/app-topbar'
 import { Button } from '@/components/ui/button'
 import { useContracts } from '@/features/contratos'
+import { createReview } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 import {
@@ -125,7 +126,7 @@ function StarRow({
 
 export function ReviewClient({ contractId }: { contractId: string }) {
   const router = useRouter()
-  const { contracts } = useContracts()
+  const { contracts, loading: contractsLoading } = useContracts()
 
   const vendor: ReviewVendor = useMemo(() => {
     const c = contracts.find((x) => x.id === contractId)
@@ -154,6 +155,8 @@ export function ReviewClient({ contractId }: { contractId: string }) {
   const [recommend, setRecommend] = useState<'yes' | 'no'>('yes')
   const [showName, setShowName] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const chars = text.length
   const charPct = Math.min(100, Math.round((chars / MAX_CHARS) * 100))
@@ -162,6 +165,40 @@ export function ReviewClient({ contractId }: { contractId: string }) {
     setHighlights((prev) =>
       prev.includes(label) ? prev.filter((h) => h !== label) : [...prev, label],
     )
+
+  async function handlePublish() {
+    setSubmitError(null)
+    setSubmitting(true)
+    try {
+      await createReview({
+        contract_id: Number(contractId),
+        rating_overall: rating,
+        rating_atendimento: aspects.atendimento,
+        rating_pontualidade: aspects.pontualidade,
+        rating_qualidade: aspects.qualidade,
+        highlights,
+        text,
+        recommend: recommend === 'yes',
+        show_name: showName,
+      })
+      setPublished(true)
+    } catch {
+      setSubmitError('Não foi possível publicar a avaliação. Tente novamente.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (contractsLoading) {
+    return (
+      <div className="bg-background text-foreground min-h-screen">
+        <AppTopbar activeLabel="Avaliações" />
+        <main className="text-muted-foreground mx-auto max-w-3xl px-4 py-16 text-center text-sm">
+          Carregando...
+        </main>
+      </div>
+    )
+  }
 
   if (published) {
     return (
@@ -677,13 +714,14 @@ export function ReviewClient({ contractId }: { contractId: string }) {
         </div>
 
         {/* submit */}
+        {submitError && <p className="text-destructive mt-4 text-sm">{submitError}</p>}
         <Button
-          onClick={() => setPublished(true)}
-          disabled={rating === 0}
-          className="mt-6 h-14 w-full gap-2 text-sm font-semibold"
+          onClick={handlePublish}
+          disabled={rating === 0 || submitting}
+          className="mt-2 h-14 w-full gap-2 text-sm font-semibold"
         >
           <Star className="size-4 fill-current" />
-          Publicar Avaliação no Perfil
+          {submitting ? 'Publicando...' : 'Publicar Avaliação no Perfil'}
           <ArrowRight className="size-4" />
         </Button>
 

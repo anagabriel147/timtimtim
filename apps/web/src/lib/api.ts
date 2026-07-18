@@ -14,6 +14,107 @@ export type LoginResponse = {
   user: SessionUser
 }
 
+export type ServiceCategory = {
+  id: number
+  name: string
+  slug: string
+  icon: string | null
+}
+
+export type Event = {
+  id: number
+  type: string
+  name: string
+  event_date: string | null
+  guests_count: number | null
+  notes: string | null
+  country: string | null
+  district: string | null
+  city: string | null
+  venue_name: string | null
+  address: string | null
+  venue_status: string | null
+  phase: string
+  budget_total: string | null
+  created_at: string
+  service_categories: ServiceCategory[]
+}
+
+export type EventCreateInput = {
+  type: string
+  name: string
+  event_date?: string | null
+  guests_count?: number | null
+  notes?: string | null
+  country?: string | null
+  district?: string | null
+  city?: string | null
+  venue_name?: string | null
+  address?: string | null
+  venue_status?: string | null
+  service_category_ids?: number[]
+}
+
+export type ProposalItem = {
+  description: string
+  qty: number
+  unit: string | null
+  unit_value: string
+}
+
+export type Proposal = {
+  id: number
+  quote_request_id: number
+  provider_id: number
+  provider_name: string
+  provider_avatar: string | null
+  title: string
+  amount: string
+  payment_term: string | null
+  validity_days: number | null
+  scope_text: string | null
+  status: string
+  items: ProposalItem[]
+}
+
+export type Contract = {
+  id: number
+  contract_code: string
+  event_id: number
+  event_name: string
+  event_city: string | null
+  provider_id: number
+  provider_name: string
+  provider_avatar: string | null
+  value: string
+  installments_count: number
+  service_status: string
+  payment_status: string
+  created_at: string
+}
+
+export type DisputeCreateInput = {
+  contract_id: number
+  category: string
+  severity: string
+  incident_date?: string | null
+  statement_text: string
+  requested_resolution: string
+  requested_value?: number | null
+}
+
+export type ReviewCreateInput = {
+  contract_id: number
+  rating_overall: number
+  rating_atendimento: number
+  rating_pontualidade: number
+  rating_qualidade: number
+  highlights: string[]
+  text: string
+  recommend: boolean
+  show_name: boolean
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -38,6 +139,26 @@ export function clearToken(): void {
   window.localStorage.removeItem(TOKEN_KEY)
 }
 
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken()
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
+  })
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    throw new ApiError(body?.detail ?? 'Ocorreu um erro ao falar com o servidor.', res.status)
+  }
+
+  if (res.status === 204) return undefined as T
+  return res.json()
+}
+
 export async function login(email: string, password: string): Promise<LoginResponse> {
   const res = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
@@ -53,14 +174,50 @@ export async function login(email: string, password: string): Promise<LoginRespo
   return res.json()
 }
 
-export async function fetchCurrentUser(): Promise<SessionUser | null> {
-  const token = getToken()
-  if (!token) return null
+export function fetchCurrentUser(): Promise<SessionUser | null> {
+  return apiFetch<SessionUser>('/auth/me').catch(() => null)
+}
 
-  const res = await fetch(`${API_BASE_URL}/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
+export function listCategories(): Promise<ServiceCategory[]> {
+  return apiFetch('/categories')
+}
 
-  if (!res.ok) return null
-  return res.json()
+export function listEvents(): Promise<Event[]> {
+  return apiFetch('/events')
+}
+
+export function getEvent(id: number): Promise<Event> {
+  return apiFetch(`/events/${id}`)
+}
+
+export function createEvent(input: EventCreateInput): Promise<Event> {
+  return apiFetch('/events', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function listProposals(eventId: number): Promise<Proposal[]> {
+  return apiFetch(`/proposals?event_id=${eventId}`)
+}
+
+export function acceptProposal(id: number): Promise<Contract> {
+  return apiFetch(`/proposals/${id}/accept`, { method: 'POST' })
+}
+
+export function rejectProposal(id: number): Promise<Proposal> {
+  return apiFetch(`/proposals/${id}/reject`, { method: 'POST' })
+}
+
+export function listContracts(): Promise<Contract[]> {
+  return apiFetch('/contracts')
+}
+
+export function getContract(id: number): Promise<Contract> {
+  return apiFetch(`/contracts/${id}`)
+}
+
+export function createDispute(input: DisputeCreateInput): Promise<{ id: number }> {
+  return apiFetch('/disputes', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function createReview(input: ReviewCreateInput): Promise<{ id: number }> {
+  return apiFetch('/reviews', { method: 'POST', body: JSON.stringify(input) })
 }
