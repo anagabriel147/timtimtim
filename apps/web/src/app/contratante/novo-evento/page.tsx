@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 
-import { EventWizard } from '@/features/cliente'
+import { EventWizard } from '@/features/contratante'
 
 export const metadata: Metadata = {
   title: 'Criar Evento · TimTim',

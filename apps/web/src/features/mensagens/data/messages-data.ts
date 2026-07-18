@@ -9,10 +9,10 @@ export const CURRENT_USER = {
 }
 
 export const NAV = [
-  { label: 'Explorar', href: '/cliente/fornecedores' },
-  { label: 'Eventos', href: '/cliente' },
-  { label: 'Fornecedores', href: '/cliente/fornecedores' },
-  { label: 'Mensagens', href: '/cliente/mensagens' },
+  { label: 'Explorar', href: '/contratante/fornecedores' },
+  { label: 'Eventos', href: '/contratante' },
+  { label: 'Fornecedores', href: '/contratante/fornecedores' },
+  { label: 'Mensagens', href: '/contratante/mensagens' },
 ] as const
 
 export const FILTERS = ['Todos', 'Ativos', 'Propostas'] as const

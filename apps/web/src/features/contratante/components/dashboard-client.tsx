@@ -12,7 +12,7 @@ export function DashboardClient() {
 
   return (
     <div className="flex min-h-svh flex-col">
-      <DashboardNav onNewEvent={() => router.push('/cliente/novo-evento')} />
+      <DashboardNav onNewEvent={() => router.push('/contratante/novo-evento')} />
 
       <main className="flex-1">
         <DashboardContent />

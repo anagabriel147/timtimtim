@@ -9,7 +9,7 @@ import { Bell, ChevronDown, LogOut, Plus, Settings, User } from 'lucide-react'
 
 import { BrandMark } from '@/components/brand/brand-mark'
 import { Button } from '@/components/ui/button'
-import { CLIENT_DASHBOARD_NAV, CLIENT_USER } from '@/config/navigation'
+import { CONTRATANTE_DASHBOARD_NAV, CONTRATANTE_USER } from '@/config/navigation'
 import { cn } from '@/lib/utils'
 
 export function DashboardNav({
@@ -28,7 +28,7 @@ export function DashboardNav({
         <BrandMark size="md" />
 
         <nav className="hidden items-center gap-8 lg:flex" aria-label="Navegação principal">
-          {CLIENT_DASHBOARD_NAV.map((link) => {
+          {CONTRATANTE_DASHBOARD_NAV.map((link) => {
             const active = link.label === activeLabel
             return (
               <button
@@ -78,8 +78,8 @@ export function DashboardNav({
               aria-expanded={menuOpen}
             >
               <Image
-                src={CLIENT_USER.avatar || '/placeholder.svg'}
-                alt={CLIENT_USER.name}
+                src={CONTRATANTE_USER.avatar || '/placeholder.svg'}
+                alt={CONTRATANTE_USER.name}
                 width={32}
                 height={32}
                 className="size-8 rounded-full object-cover"
@@ -89,7 +89,7 @@ export function DashboardNav({
                   Olá,
                 </span>
                 <span className="text-foreground block text-sm leading-tight font-medium">
-                  {CLIENT_USER.name}
+                  {CONTRATANTE_USER.name}
                 </span>
               </span>
               <ChevronDown className="text-muted-foreground size-4" />

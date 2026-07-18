@@ -38,7 +38,7 @@ export function ExploreLanding() {
     const params = new URLSearchParams()
     if (preset ?? category) params.set('categoria', preset ?? category)
     if (city) params.set('cidade', city)
-    router.push(`/cliente/fornecedores/busca?${params.toString()}`)
+    router.push(`/contratante/fornecedores/busca?${params.toString()}`)
   }
 
   return (

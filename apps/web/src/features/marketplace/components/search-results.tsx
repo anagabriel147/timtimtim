@@ -80,7 +80,7 @@ export function SearchResults({ query }: { query: string }) {
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-4 px-6">
           <button
             type="button"
-            onClick={() => router.push('/cliente/fornecedores')}
+            onClick={() => router.push('/contratante/fornecedores')}
             className="flex items-center gap-2"
           >
             <span className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-lg text-sm font-bold">
@@ -273,7 +273,7 @@ export function SearchResults({ query }: { query: string }) {
               <ResultCard
                 key={v.slug}
                 vendor={v}
-                onOpen={() => router.push(`/cliente/fornecedores/${v.slug}`)}
+                onOpen={() => router.push(`/contratante/fornecedores/${v.slug}`)}
               />
             ))}
           </div>

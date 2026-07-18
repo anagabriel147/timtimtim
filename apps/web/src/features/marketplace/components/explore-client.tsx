@@ -13,7 +13,7 @@ export function ExploreClient() {
     <div className="flex min-h-svh flex-col">
       <DashboardNav
         activeLabel="Explorar Fornecedores"
-        onNewEvent={() => router.push('/cliente/novo-evento')}
+        onNewEvent={() => router.push('/contratante/novo-evento')}
       />
       <ExploreLanding />
       <footer className="border-border/60 border-t px-6 py-5">

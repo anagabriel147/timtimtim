@@ -88,7 +88,7 @@ export function DashboardContent() {
             </p>
             <button
               type="button"
-              onClick={() => router.push('/cliente/eventos/1')}
+              onClick={() => router.push('/contratante/eventos/1')}
               className="font-display text-primary text-left text-3xl font-semibold transition-opacity hover:opacity-80"
             >
               {EVENT.name}
@@ -136,7 +136,7 @@ export function DashboardContent() {
             <Button
               onClick={() => {
                 setProposalsSeen(true)
-                router.push('/cliente/eventos/1')
+                router.push('/contratante/eventos/1')
               }}
               className="h-13 w-full gap-2 py-4 text-sm font-semibold"
             >
@@ -205,7 +205,7 @@ export function DashboardContent() {
 
                 <Button
                   variant="outline"
-                  onClick={() => router.push('/cliente/eventos/1')}
+                  onClick={() => router.push('/contratante/eventos/1')}
                   className="h-10 gap-2 px-3 text-xs"
                 >
                   Ver Todas as Propostas

@@ -119,7 +119,7 @@ export function DisputeClient() {
   function handleSubmit() {
     if (!canSubmit) return
     setSubmitted(true)
-    setTimeout(() => router.push('/cliente/contratos'), 2600)
+    setTimeout(() => router.push('/contratante/contratos'), 2600)
   }
 
   return (

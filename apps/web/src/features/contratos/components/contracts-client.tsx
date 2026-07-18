@@ -267,10 +267,10 @@ export function ContractsClient() {
                   key={c.id}
                   contract={c}
                   onAction={flash}
-                  onChat={() => router.push('/cliente/mensagens')}
-                  onDispute={() => router.push('/cliente/disputas/nova')}
-                  onOpen={() => router.push(`/cliente/contratos/${c.id}`)}
-                  onRate={() => router.push(`/cliente/avaliacoes/${c.id}`)}
+                  onChat={() => router.push('/contratante/mensagens')}
+                  onDispute={() => router.push('/contratante/disputas/nova')}
+                  onOpen={() => router.push(`/contratante/contratos/${c.id}`)}
+                  onRate={() => router.push(`/contratante/avaliacoes/${c.id}`)}
                 />
               ))
             )}

@@ -6,7 +6,7 @@ import { Bell, HelpCircle } from 'lucide-react'
 
 import { BrandMark } from '@/components/brand/brand-mark'
 import { ProfileMenu } from '@/components/layout/profile-menu'
-import { CLIENT_TOPBAR_NAV, CLIENT_USER } from '@/config/navigation'
+import { CONTRATANTE_TOPBAR_NAV, CONTRATANTE_USER } from '@/config/navigation'
 import { cn } from '@/lib/utils'
 
 export function AppTopbar({ activeLabel = 'Início' }: { activeLabel?: string }) {
@@ -16,14 +16,14 @@ export function AppTopbar({ activeLabel = 'Início' }: { activeLabel?: string })
     <header className="border-border bg-background/80 sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b px-6 backdrop-blur">
       <button
         type="button"
-        onClick={() => router.push('/cliente')}
+        onClick={() => router.push('/contratante')}
         className="flex items-center gap-2"
       >
         <BrandMark />
       </button>
 
       <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 md:flex">
-        {CLIENT_TOPBAR_NAV.map((link) => {
+        {CONTRATANTE_TOPBAR_NAV.map((link) => {
           const isActive = link.label === activeLabel
           return (
             <button
@@ -63,9 +63,9 @@ export function AppTopbar({ activeLabel = 'Início' }: { activeLabel?: string })
           <HelpCircle className="size-5" />
         </button>
         <ProfileMenu
-          name={CLIENT_USER.name}
-          avatar={CLIENT_USER.avatar}
-          subtitle={CLIENT_USER.plan}
+          name={CONTRATANTE_USER.name}
+          avatar={CONTRATANTE_USER.avatar}
+          subtitle={CONTRATANTE_USER.plan}
         />
       </div>
     </header>

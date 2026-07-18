@@ -43,7 +43,7 @@ export function VendorProfile() {
     sendContactRequest(CONVERSATION_ID)
     setContactRequested(true)
     setActiveId(CONVERSATION_ID)
-    router.push('/cliente/mensagens')
+    router.push('/contratante/mensagens')
   }
   const [showAllReviews, setShowAllReviews] = useState(false)
 
@@ -57,7 +57,7 @@ export function VendorProfile() {
           <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={() => router.push('/cliente/fornecedores')}
+              onClick={() => router.push('/contratante/fornecedores')}
               className="flex items-center gap-2"
             >
               <span className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-lg text-sm font-bold">
@@ -71,7 +71,7 @@ export function VendorProfile() {
                   {i > 0 && <ChevronRight className="size-3.5" />}
                   <button
                     type="button"
-                    onClick={() => i < 2 && router.push('/cliente/fornecedores/busca')}
+                    onClick={() => i < 2 && router.push('/contratante/fornecedores/busca')}
                     className={cn(
                       i === p.breadcrumb.length - 1 ? 'text-foreground' : 'hover:text-foreground',
                     )}
@@ -196,7 +196,7 @@ export function VendorProfile() {
                 <li key={o.name}>
                   <button
                     type="button"
-                    onClick={() => router.push('/cliente/fornecedores/busca')}
+                    onClick={() => router.push('/contratante/fornecedores/busca')}
                     className="hover:bg-secondary/60 flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors"
                   >
                     <span className="bg-primary/10 text-primary grid size-10 shrink-0 place-items-center rounded-lg">
@@ -218,7 +218,7 @@ export function VendorProfile() {
             </ul>
             <Button
               variant="outline"
-              onClick={() => router.push('/cliente/fornecedores/busca')}
+              onClick={() => router.push('/contratante/fornecedores/busca')}
               className="text-primary mt-3 w-full text-sm"
             >
               Ver todos os decoradores

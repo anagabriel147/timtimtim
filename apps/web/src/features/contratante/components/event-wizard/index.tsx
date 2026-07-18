@@ -46,11 +46,11 @@ export function EventWizard() {
   }
 
   function cancel() {
-    router.push('/cliente')
+    router.push('/contratante')
   }
 
   if (published) {
-    return <PublishedScreen displayName={displayName} onBack={() => router.push('/cliente')} />
+    return <PublishedScreen displayName={displayName} onBack={() => router.push('/contratante')} />
   }
 
   return (

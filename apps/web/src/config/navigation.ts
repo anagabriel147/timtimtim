@@ -8,24 +8,24 @@ export type NavLink = {
   href: string
 }
 
-export const CLIENT_USER = {
+export const CONTRATANTE_USER = {
   name: 'Ana',
   plan: 'Premium',
   avatar: '/images/home/avatar-client-1.png',
 } as const
 
-export const CLIENT_TOPBAR_NAV: readonly NavLink[] = [
-  { label: 'Explorar', href: '/cliente/fornecedores' },
-  { label: 'Início', href: '/cliente' },
-  { label: 'Contratos', href: '/cliente/contratos' },
-  { label: 'Disputas', href: '/cliente/disputas/nova' },
-  { label: 'Mensagens', href: '/cliente/mensagens' },
+export const CONTRATANTE_TOPBAR_NAV: readonly NavLink[] = [
+  { label: 'Explorar', href: '/contratante/fornecedores' },
+  { label: 'Início', href: '/contratante' },
+  { label: 'Contratos', href: '/contratante/contratos' },
+  { label: 'Disputas', href: '/contratante/disputas/nova' },
+  { label: 'Mensagens', href: '/contratante/mensagens' },
 ] as const
 
-export const CLIENT_DASHBOARD_NAV: readonly NavLink[] = [
-  { label: 'Início', href: '/cliente' },
-  { label: 'Explorar Fornecedores', href: '/cliente/fornecedores' },
-  { label: 'Contratos', href: '/cliente/contratos' },
-  { label: 'Mensagens', href: '/cliente/mensagens' },
-  { label: 'Favoritos', href: '/cliente' },
+export const CONTRATANTE_DASHBOARD_NAV: readonly NavLink[] = [
+  { label: 'Início', href: '/contratante' },
+  { label: 'Explorar Fornecedores', href: '/contratante/fornecedores' },
+  { label: 'Contratos', href: '/contratante/contratos' },
+  { label: 'Mensagens', href: '/contratante/mensagens' },
+  { label: 'Favoritos', href: '/contratante' },
 ] as const

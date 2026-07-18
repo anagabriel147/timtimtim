@@ -100,7 +100,7 @@ export function QuoteRequestModal({ open, onClose }: { open: boolean; onClose: (
               onClose={onClose}
               onGoToChat={() => {
                 setActiveId(CONVERSATION_ID)
-                router.push('/cliente/mensagens')
+                router.push('/contratante/mensagens')
               }}
             />
           ) : (

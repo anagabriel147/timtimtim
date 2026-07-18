@@ -347,7 +347,7 @@ export function ReviewClient({ contractId }: { contractId: string }) {
               {/* actions */}
               <div className="space-y-3">
                 <Button
-                  onClick={() => router.push(`/cliente/fornecedores/${vendor.slug}`)}
+                  onClick={() => router.push(`/contratante/fornecedores/${vendor.slug}`)}
                   className="h-13 w-full gap-2 py-4 text-sm font-semibold"
                 >
                   <Users className="size-4" />
@@ -357,7 +357,7 @@ export function ReviewClient({ contractId }: { contractId: string }) {
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
-                    onClick={() => router.push('/cliente')}
+                    onClick={() => router.push('/contratante')}
                     className="h-11 gap-2 text-sm"
                   >
                     <Calendar className="size-4" />

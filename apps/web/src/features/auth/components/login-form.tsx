@@ -11,10 +11,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 // Mocked credentials for the frontend-only prototype
-const MOCK_CLIENT = {
+const MOCK_CONTRATANTE = {
   email: 'ana@timtim.com.br',
   password: '12345',
-  redirect: '/cliente',
+  redirect: '/contratante',
 }
 
 const MOCK_SUPPLIER = {
@@ -49,9 +49,9 @@ export function LoginForm() {
 
     const login = email.trim().toLowerCase()
 
-    if (login === MOCK_CLIENT.email && password === MOCK_CLIENT.password) {
+    if (login === MOCK_CONTRATANTE.email && password === MOCK_CONTRATANTE.password) {
       setLoading(true)
-      router.push(MOCK_CLIENT.redirect)
+      router.push(MOCK_CONTRATANTE.redirect)
       return
     }
 

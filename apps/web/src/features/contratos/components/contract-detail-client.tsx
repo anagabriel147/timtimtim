@@ -93,7 +93,7 @@ export function ContractDetailClient({ id }: { id: string }) {
             Este contrato pode ter sido criado em outra sessão. Os contratos deste protótipo ficam
             em memória e são reiniciados ao recarregar a página.
           </p>
-          <Button onClick={() => router.push('/cliente/contratos')} className="mt-6 gap-2">
+          <Button onClick={() => router.push('/contratante/contratos')} className="mt-6 gap-2">
             <ArrowLeft className="size-4" />
             Voltar aos contratos
           </Button>
@@ -137,7 +137,7 @@ export function ContractDetailClient({ id }: { id: string }) {
         <nav className="text-muted-foreground flex items-center gap-1.5 text-xs">
           <button
             type="button"
-            onClick={() => router.push('/cliente/contratos')}
+            onClick={() => router.push('/contratante/contratos')}
             className="hover:text-foreground transition-colors"
           >
             Contratos
@@ -172,7 +172,7 @@ export function ContractDetailClient({ id }: { id: string }) {
           </div>
           <Button
             variant="outline"
-            onClick={() => router.push('/cliente/contratos')}
+            onClick={() => router.push('/contratante/contratos')}
             className="h-10 gap-2 px-4 text-sm"
           >
             <ArrowLeft className="size-4" />
@@ -313,7 +313,7 @@ export function ContractDetailClient({ id }: { id: string }) {
               <div className="mt-4 space-y-3">
                 {!cancelled && (
                   <Button
-                    onClick={() => router.push('/cliente/mensagens')}
+                    onClick={() => router.push('/contratante/mensagens')}
                     className="h-11 w-full justify-start gap-2 text-sm font-semibold"
                   >
                     <MessageSquare className="size-4" />
@@ -324,7 +324,7 @@ export function ContractDetailClient({ id }: { id: string }) {
                 {!cancelled && (
                   <Button
                     variant="outline"
-                    onClick={() => router.push(`/cliente/avaliacoes/${id}`)}
+                    onClick={() => router.push(`/contratante/avaliacoes/${id}`)}
                     className="h-11 w-full justify-start gap-2 text-sm"
                   >
                     <Star className="size-4" />
@@ -335,7 +335,7 @@ export function ContractDetailClient({ id }: { id: string }) {
                 {!cancelled && (
                   <Button
                     variant="outline"
-                    onClick={() => router.push('/cliente/disputas/nova')}
+                    onClick={() => router.push('/contratante/disputas/nova')}
                     className="h-11 w-full justify-start gap-2 text-sm"
                   >
                     <Gavel className="size-4" />

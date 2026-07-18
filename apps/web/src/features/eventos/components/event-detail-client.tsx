@@ -104,7 +104,7 @@ export function EventDetailClient() {
   const flash = (msg: string) => setToast(msg)
 
   const goChat = () => {
-    router.push('/cliente/mensagens')
+    router.push('/contratante/mensagens')
   }
 
   return (
@@ -159,7 +159,7 @@ export function EventDetailClient() {
             <Button
               onClick={() => {
                 flash('Vamos encontrar um novo fornecedor para o seu evento.')
-                router.push('/cliente/fornecedores')
+                router.push('/contratante/fornecedores')
               }}
               className="h-11 gap-2 px-5 text-sm font-semibold"
             >
@@ -419,7 +419,7 @@ export function EventDetailClient() {
             location: p.location,
           })
           setPendingPayment(null)
-          router.push('/cliente/contratos')
+          router.push('/contratante/contratos')
         }}
       />
     </div>

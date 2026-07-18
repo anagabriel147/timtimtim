@@ -8,4 +8,4 @@ export type SessionUser = {
 }
 
 /** Perfis de acesso suportados pela plataforma. */
-export type UserRole = 'cliente' | 'fornecedor' | 'assessor' | 'admin'
+export type UserRole = 'contratante' | 'fornecedor' | 'assessor' | 'admin'

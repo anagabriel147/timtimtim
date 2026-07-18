@@ -126,8 +126,8 @@ export const DISTRIBUTION = {
 }
 
 export const QUICK_ACTIONS = [
-  { label: 'Buscar Fornecedor', icon: 'search', href: '/cliente/fornecedores' },
-  { label: 'Todas Mensagens', icon: 'message', href: '/cliente/mensagens' },
+  { label: 'Buscar Fornecedor', icon: 'search', href: '/contratante/fornecedores' },
+  { label: 'Todas Mensagens', icon: 'message', href: '/contratante/mensagens' },
 ]
 
 export type { BudgetRow, BudgetStatus }

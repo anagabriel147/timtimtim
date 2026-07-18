@@ -55,11 +55,11 @@ Detalhes e regras de dependência: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md
 
 ## Perfis e rotas
 
-| Perfil      | Rota          |
-| ----------- | ------------- |
-| Público     | `/`, `/home`  |
-| Registo     | `/cadastro`   |
-| Contratante | `/cliente`    |
-| Fornecedor  | `/fornecedor` |
-| Assessor    | `/assessor`   |
-| Admin       | `/admin`      |
+| Perfil      | Rota           |
+| ----------- | -------------- |
+| Público     | `/`, `/home`   |
+| Registo     | `/cadastro`    |
+| Contratante | `/contratante` |
+| Fornecedor  | `/fornecedor`  |
+| Assessor    | `/assessor`    |
+| Admin       | `/admin`       |

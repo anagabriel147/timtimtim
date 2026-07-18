@@ -97,7 +97,7 @@ export function MessagesClient() {
         <div className="flex items-center gap-10">
           <button
             type="button"
-            onClick={() => router.push('/cliente')}
+            onClick={() => router.push('/contratante')}
             className="flex items-center gap-2"
           >
             <BrandMark />

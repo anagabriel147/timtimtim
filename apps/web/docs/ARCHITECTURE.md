@@ -52,7 +52,7 @@ por isso uma violação falha o `pnpm lint` — não depende de revisão manual.
 | `home`        | Landing pública                                                   |
 | `cadastro`    | Registo, escolha de plano e checkout                              |
 | `marketplace` | Explorar/pesquisar fornecedores, perfil e pedido de orçamento     |
-| `cliente`     | Painel do contratante e assistente de criação de evento           |
+| `contratante` | Painel do contratante e assistente de criação de evento           |
 | `eventos`     | Detalhe do evento e pagamentos                                    |
 | `contratos`   | Contratos do contratante                                          |
 | `disputas`    | Abertura e acompanhamento de disputas                             |
@@ -79,7 +79,7 @@ Ao ligar a API real:
 
 - Ficheiros e pastas em `kebab-case`; componentes em `PascalCase`.
 - `'use client'` apenas onde há estado/efeitos — manter as páginas como Server Components.
-- Componentes acima de ~300 linhas devem ser divididos (ver `features/cliente/components/event-wizard/`).
+- Componentes acima de ~300 linhas devem ser divididos (ver `features/contratante/components/event-wizard/`).
 - Cores, raios e tipografia vêm dos tokens em `src/app/globals.css` — nada de valores hardcoded.
 
 ## Comandos
