@@ -9,31 +9,7 @@ import { Eye, EyeOff, TriangleAlert } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-
-// Mocked credentials for the frontend-only prototype
-const MOCK_CONTRATANTE = {
-  email: 'ana@timtim.com.br',
-  password: '12345',
-  redirect: '/contratante',
-}
-
-const MOCK_SUPPLIER = {
-  email: 'fornecedor@timtim.com.br',
-  password: '12345',
-  redirect: '/fornecedor',
-}
-
-const MOCK_ADVISOR = {
-  email: 'assessor@timtim.com.br',
-  password: '12345',
-  redirect: '/assessor',
-}
-
-const MOCK_ADMIN = {
-  email: 'admin@timtim.com.br',
-  password: '12345',
-  redirect: '/admin',
-}
+import { ApiError, login as loginRequest, setToken } from '@/lib/api'
 
 export function LoginForm() {
   const router = useRouter()
@@ -43,37 +19,23 @@ export function LoginForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setLoading(true)
 
-    const login = email.trim().toLowerCase()
-
-    if (login === MOCK_CONTRATANTE.email && password === MOCK_CONTRATANTE.password) {
-      setLoading(true)
-      router.push(MOCK_CONTRATANTE.redirect)
-      return
+    try {
+      const { access_token, user } = await loginRequest(email.trim().toLowerCase(), password)
+      setToken(access_token)
+      router.push(`/${user.role}`)
+    } catch (err) {
+      setLoading(false)
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : 'Não foi possível conectar ao servidor. Tente novamente.',
+      )
     }
-
-    if (login === MOCK_SUPPLIER.email && password === MOCK_SUPPLIER.password) {
-      setLoading(true)
-      router.push(MOCK_SUPPLIER.redirect)
-      return
-    }
-
-    if (login === MOCK_ADVISOR.email && password === MOCK_ADVISOR.password) {
-      setLoading(true)
-      router.push(MOCK_ADVISOR.redirect)
-      return
-    }
-
-    if (login === MOCK_ADMIN.email && password === MOCK_ADMIN.password) {
-      setLoading(true)
-      router.push(MOCK_ADMIN.redirect)
-      return
-    }
-
-    setError('E-mail ou senha incorretos. Verifique seus dados e tente novamente.')
   }
 
   return (
