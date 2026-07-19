@@ -18,6 +18,8 @@ class ContractOut(BaseModel):
     event_id: int
     event_name: str
     event_city: str | None
+    contratante_id: int
+    contratante_name: str
     provider_id: int
     provider_name: str
     provider_avatar: str | None
@@ -35,6 +37,8 @@ class ContractOut(BaseModel):
             event_id=contract.event_id,
             event_name=contract.event.name,
             event_city=contract.event.city,
+            contratante_id=contract.contratante_id,
+            contratante_name=contract.contratante.name,
             provider_id=contract.provider_id,
             provider_name=contract.provider.name,
             provider_avatar=contract.provider.avatar_url,

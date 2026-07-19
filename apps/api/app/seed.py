@@ -1,8 +1,9 @@
 """Popula o banco com dados de teste: os 4 usuários que hoje estão
 hardcoded no login mock do frontend (mesmas credenciais, agora com senha
-hasheada de verdade), categorias de serviço, e um evento com uma proposta
-pendente do fornecedor — o suficiente para o dashboard e o detalhe do
-evento do contratante mostrarem dado real.
+hasheada de verdade), categorias de serviço, um evento com uma proposta
+pendente do fornecedor (já virou contrato ao longo dos testes manuais) e
+uma segunda solicitação de orçamento ainda aberta — o suficiente para os
+dashboards do contratante e do fornecedor mostrarem dado real.
 
 Uso: python -m app.seed
 """
@@ -16,33 +17,6 @@ from app.models.enums import EventTypeEnum, ProposalStatusEnum, QuoteRequestStat
 from app.models.event import Event
 from app.models.proposal import Proposal, ProposalItem, QuoteRequest
 from app.models.user import AssessorProfile, ProviderProfile, User
-
-SEED_USERS = [
-    {
-        "name": "Ana",
-        "email": "ana@timtim.com.br",
-        "password": "12345",
-        "role": RoleEnum.CONTRATANTE,
-    },
-    {
-        "name": "Guto Decorações",
-        "email": "fornecedor@timtim.com.br",
-        "password": "12345",
-        "role": RoleEnum.FORNECEDOR,
-    },
-    {
-        "name": "Isabela Assessora",
-        "email": "assessor@timtim.com.br",
-        "password": "12345",
-        "role": RoleEnum.ASSESSOR,
-    },
-    {
-        "name": "Admin TimTim",
-        "email": "admin@timtim.com.br",
-        "password": "12345",
-        "role": RoleEnum.ADMIN,
-    },
-]
 
 SEED_CATEGORIES = [
     {"name": "Bar de Coquetéis", "slug": "bar", "icon": "martini"},
@@ -58,8 +32,49 @@ def seed() -> None:
     Base.metadata.create_all(engine)
     db = SessionLocal()
     try:
+        categories_by_slug = {}
+        for cat in SEED_CATEGORIES:
+            existing = db.query(ServiceCategory).filter(ServiceCategory.slug == cat["slug"]).first()
+            if existing:
+                categories_by_slug[cat["slug"]] = existing
+                continue
+            category = ServiceCategory(**cat)
+            db.add(category)
+            db.flush()
+            categories_by_slug[cat["slug"]] = category
+            print(f"[criado] categoria {cat['name']}")
+        db.commit()
+
+        seed_users = [
+            {
+                "name": "Ana",
+                "email": "ana@timtim.com.br",
+                "password": "12345",
+                "role": RoleEnum.CONTRATANTE,
+            },
+            {
+                "name": "Guto Decorações",
+                "email": "fornecedor@timtim.com.br",
+                "password": "12345",
+                "role": RoleEnum.FORNECEDOR,
+                "category_slug": "decoracao",
+            },
+            {
+                "name": "Isabela Assessora",
+                "email": "assessor@timtim.com.br",
+                "password": "12345",
+                "role": RoleEnum.ASSESSOR,
+            },
+            {
+                "name": "Admin TimTim",
+                "email": "admin@timtim.com.br",
+                "password": "12345",
+                "role": RoleEnum.ADMIN,
+            },
+        ]
+
         users_by_email = {}
-        for data in SEED_USERS:
+        for data in seed_users:
             existing = db.query(User).filter(User.email == data["email"]).first()
             if existing:
                 print(f"[skip] {data['email']} já existe")
@@ -77,25 +92,18 @@ def seed() -> None:
             users_by_email[data["email"]] = user
 
             if data["role"] == RoleEnum.FORNECEDOR:
-                db.add(ProviderProfile(user_id=user.id))
+                category = categories_by_slug.get(data.get("category_slug", ""))
+                db.add(
+                    ProviderProfile(
+                        user_id=user.id,
+                        category_id=category.id if category else None,
+                    )
+                )
             elif data["role"] == RoleEnum.ASSESSOR:
                 db.add(AssessorProfile(user_id=user.id, referral_code="ISABELA-TT25"))
 
             print(f"[criado] {data['email']} ({data['role'].value})")
 
-        db.commit()
-
-        categories_by_slug = {}
-        for cat in SEED_CATEGORIES:
-            existing = db.query(ServiceCategory).filter(ServiceCategory.slug == cat["slug"]).first()
-            if existing:
-                categories_by_slug[cat["slug"]] = existing
-                continue
-            category = ServiceCategory(**cat)
-            db.add(category)
-            db.flush()
-            categories_by_slug[cat["slug"]] = category
-            print(f"[criado] categoria {cat['name']}")
         db.commit()
 
         contratante = users_by_email["ana@timtim.com.br"]
@@ -167,8 +175,38 @@ def seed() -> None:
             )
             db.commit()
             print("[criado] evento + proposta pendente para Ana")
+            wedding_event = event
         else:
             print("[skip] evento seed já existe")
+            wedding_event = existing_event
+
+        # segunda solicitação, ainda aberta (sem proposta) — aparece como
+        # oportunidade real no dashboard do fornecedor
+        open_quote = (
+            db.query(QuoteRequest)
+            .filter(
+                QuoteRequest.event_id == wedding_event.id,
+                QuoteRequest.category_id == categories_by_slug["decoracao"].id,
+                QuoteRequest.status == QuoteRequestStatusEnum.ABERTO,
+            )
+            .first()
+        )
+        if open_quote is None:
+            db.add(
+                QuoteRequest(
+                    event_id=wedding_event.id,
+                    contratante_id=contratante.id,
+                    provider_id=None,  # aberto pra qualquer fornecedor da categoria
+                    category_id=categories_by_slug["decoracao"].id,
+                    source="marketplace",
+                    budget=12000,
+                    vision_text="Precisamos também de arranjos florais para a cerimônia ao ar livre,"
+                    " estilo boho, com tons pastéis.",
+                    status=QuoteRequestStatusEnum.ABERTO,
+                )
+            )
+            db.commit()
+            print("[criado] segunda solicitação em aberto (oportunidade para fornecedores)")
 
         # eventos já concluídos, para o histórico do dashboard
         for name, days_ago in [("Festa de Noivado", 400), ("Aniversário de 30 Anos", 550)]:

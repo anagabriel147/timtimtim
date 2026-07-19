@@ -68,13 +68,66 @@ export type Proposal = {
   provider_id: number
   provider_name: string
   provider_avatar: string | null
+  contratante_name: string
+  event_name: string | null
+  category_name: string | null
   title: string
   amount: string
   payment_term: string | null
   validity_days: number | null
   scope_text: string | null
   status: string
+  created_at: string
   items: ProposalItem[]
+}
+
+export type ProposalItemInput = {
+  description: string
+  qty: number
+  unit?: string | null
+  unit_value: number
+}
+
+export type ProposalCreateInput = {
+  quote_request_id: number
+  title: string
+  category_id?: number | null
+  deadline?: string | null
+  amount: number
+  payment_term?: string | null
+  validity_days?: number | null
+  scope_text?: string | null
+  notes?: string | null
+  items?: ProposalItemInput[]
+}
+
+export type Opportunity = {
+  id: number
+  event_id: number | null
+  event_name: string | null
+  contratante_name: string
+  category_name: string | null
+  source: string
+  budget: string | null
+  vision_text: string | null
+  status: string
+  created_at: string
+  proposals_count: number
+}
+
+export type Payout = {
+  id: number
+  amount: string
+  method: string
+  pix_key: string | null
+  status: string
+  reference: string | null
+  created_at: string
+}
+
+export type PayoutCreateInput = {
+  amount: number
+  pix_key?: string | null
 }
 
 export type Contract = {
@@ -83,6 +136,8 @@ export type Contract = {
   event_id: number
   event_name: string
   event_city: string | null
+  contratante_id: number
+  contratante_name: string
   provider_id: number
   provider_name: string
   provider_avatar: string | null
@@ -198,12 +253,28 @@ export function listProposals(eventId: number): Promise<Proposal[]> {
   return apiFetch(`/proposals?event_id=${eventId}`)
 }
 
+export function listMyProposals(): Promise<Proposal[]> {
+  return apiFetch('/proposals/mine')
+}
+
+export function createProposal(input: ProposalCreateInput): Promise<Proposal> {
+  return apiFetch('/proposals', { method: 'POST', body: JSON.stringify(input) })
+}
+
 export function acceptProposal(id: number): Promise<Contract> {
   return apiFetch(`/proposals/${id}/accept`, { method: 'POST' })
 }
 
 export function rejectProposal(id: number): Promise<Proposal> {
   return apiFetch(`/proposals/${id}/reject`, { method: 'POST' })
+}
+
+export function listOpportunities(): Promise<Opportunity[]> {
+  return apiFetch('/opportunities')
+}
+
+export function getOpportunity(id: number): Promise<Opportunity> {
+  return apiFetch(`/opportunities/${id}`)
 }
 
 export function listContracts(): Promise<Contract[]> {
@@ -220,4 +291,12 @@ export function createDispute(input: DisputeCreateInput): Promise<{ id: number }
 
 export function createReview(input: ReviewCreateInput): Promise<{ id: number }> {
   return apiFetch('/reviews', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function listPayouts(): Promise<Payout[]> {
+  return apiFetch('/payouts')
+}
+
+export function requestPayout(input: PayoutCreateInput): Promise<Payout> {
+  return apiFetch('/payouts', { method: 'POST', body: JSON.stringify(input) })
 }

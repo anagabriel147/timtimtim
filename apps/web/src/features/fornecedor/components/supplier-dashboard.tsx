@@ -1,59 +1,48 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 
-import {
-  Calendar,
-  FileText,
-  Filter,
-  Laptop,
-  SendHorizonal,
-  Shirt,
-  SquarePen,
-  TrendingUp,
-  Users,
-  Utensils,
-  Zap,
-} from 'lucide-react'
+import { Calendar, FileText, Filter, SendHorizonal, SquarePen, Users, Zap } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-
 import {
-  OPPORTUNITIES,
-  STATS,
-  SUPPLIER_MESSAGES,
-  SUPPLIER_USER,
-  type Opportunity,
-} from '../data/supplier-data'
+  type Contract,
+  listContracts,
+  listMyProposals,
+  listOpportunities,
+  type Opportunity as ApiOpportunity,
+  type Proposal,
+} from '@/lib/api'
+
+import { SUPPLIER_MESSAGES, SUPPLIER_USER } from '../data/supplier-data'
 
 import { SupplierFooter, SupplierTopbar } from './supplier-topbar'
 
-const STAT_ICONS = {
-  zap: Zap,
-  file: FileText,
-  currency: null,
-} as const
-
-const OPP_ICONS = {
-  shirt: Shirt,
-  utensils: Utensils,
-  laptop: Laptop,
-} as const
-
-const TAG_STYLES: Record<Opportunity['tag'], string> = {
-  URGENTE: 'border-destructive/40 bg-destructive/10 text-destructive',
-  'ALTO VALOR': 'border-primary/40 bg-primary/10 text-primary',
-  RECORRENTE: 'border-border bg-muted/40 text-muted-foreground',
+function formatCurrency(value: number): string {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
 export function SupplierDashboard() {
   const router = useRouter()
   const [draft, setDraft] = useState('')
   const [toast, setToast] = useState<string | null>(null)
+  const [opportunities, setOpportunities] = useState<ApiOpportunity[]>([])
+  const [myProposals, setMyProposals] = useState<Proposal[]>([])
+  const [contracts, setContracts] = useState<Contract[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([listOpportunities(), listMyProposals(), listContracts()])
+      .then(([fetchedOpportunities, fetchedProposals, fetchedContracts]) => {
+        setOpportunities(fetchedOpportunities)
+        setMyProposals(fetchedProposals)
+        setContracts(fetchedContracts)
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
   function flash(msg: string) {
     setToast(msg)
@@ -62,6 +51,40 @@ export function SupplierDashboard() {
   }
 
   const unreadCount = SUPPLIER_MESSAGES.filter((m) => m.unread).length
+  const revenue = contracts.reduce((sum, c) => sum + Number.parseFloat(c.value), 0)
+  const activeProposalsCount = myProposals.filter((p) => p.status === 'analise').length
+
+  const statCards = [
+    {
+      id: 'leads',
+      icon: Zap,
+      tag: 'ATIVO',
+      value: String(opportunities.length),
+      label: 'Leads Ativos',
+    },
+    {
+      id: 'proposals',
+      icon: FileText,
+      tag: 'TOTAL',
+      value: String(activeProposalsCount),
+      label: 'Propostas em Análise',
+    },
+    {
+      id: 'revenue',
+      icon: null,
+      tag: 'VOLUME',
+      value: formatCurrency(revenue),
+      label: 'Faturamento Fechado',
+    },
+  ]
+
+  if (loading) {
+    return (
+      <div className="text-muted-foreground mx-auto max-w-7xl px-6 py-10 text-sm">
+        Carregando...
+      </div>
+    )
+  }
 
   return (
     <div className="bg-background min-h-screen">
@@ -84,7 +107,7 @@ export function SupplierDashboard() {
             <p className="text-muted-foreground mt-2 text-pretty">
               Você tem{' '}
               <span className="text-foreground font-semibold">
-                {SUPPLIER_USER.newOpportunities} novas oportunidades
+                {opportunities.length} novas oportunidades
               </span>{' '}
               aguardando sua proposta.
             </p>
@@ -93,36 +116,29 @@ export function SupplierDashboard() {
 
         {/* Stats */}
         <div className="mt-8 grid gap-5 md:grid-cols-3">
-          {STATS.map((stat) => {
-            const Icon = STAT_ICONS[stat.icon as keyof typeof STAT_ICONS]
-            return (
-              <div
-                key={stat.id}
-                className="border-border/60 bg-card/40 hover:border-border rounded-2xl border p-6 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <span className="bg-primary/10 text-primary grid size-10 place-items-center rounded-xl">
-                    {Icon ? (
-                      <Icon className="size-5" />
-                    ) : (
-                      <span className="text-sm font-semibold">R$</span>
-                    )}
-                  </span>
-                  <span className="border-border/60 text-muted-foreground rounded-md border px-2 py-0.5 text-[0.65rem] font-semibold tracking-wider">
-                    {stat.tag}
-                  </span>
-                </div>
-                <p className="font-display text-foreground mt-6 text-5xl font-semibold tracking-tight">
-                  {stat.value}
-                </p>
-                <p className="text-muted-foreground mt-2 text-sm">{stat.label}</p>
-                <p className="text-primary mt-4 flex items-center gap-1.5 text-xs">
-                  <TrendingUp className="size-3.5" />
-                  {stat.trend}
-                </p>
+          {statCards.map((stat) => (
+            <div
+              key={stat.id}
+              className="border-border/60 bg-card/40 hover:border-border rounded-2xl border p-6 transition-colors"
+            >
+              <div className="flex items-start justify-between">
+                <span className="bg-primary/10 text-primary grid size-10 place-items-center rounded-xl">
+                  {stat.icon ? (
+                    <stat.icon className="size-5" />
+                  ) : (
+                    <span className="text-sm font-semibold">R$</span>
+                  )}
+                </span>
+                <span className="border-border/60 text-muted-foreground rounded-md border px-2 py-0.5 text-[0.65rem] font-semibold tracking-wider">
+                  {stat.tag}
+                </span>
               </div>
-            )
-          })}
+              <p className="font-display text-foreground mt-6 text-5xl font-semibold tracking-tight">
+                {stat.value}
+              </p>
+              <p className="text-muted-foreground mt-2 text-sm">{stat.label}</p>
+            </div>
+          ))}
         </div>
 
         {/* Content grid */}
@@ -135,7 +151,7 @@ export function SupplierDashboard() {
                   Novas Oportunidades
                 </h2>
                 <span className="border-primary/40 bg-primary/10 text-primary rounded-md border px-2 py-0.5 text-xs font-semibold">
-                  {SUPPLIER_USER.newOpportunities} novos
+                  {opportunities.length} novos
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -158,74 +174,69 @@ export function SupplierDashboard() {
             </div>
 
             <div className="divide-border/60 divide-y">
-              {OPPORTUNITIES.map((op) => {
-                const Icon = OPP_ICONS[op.icon as keyof typeof OPP_ICONS] ?? FileText
-                return (
-                  <article key={op.id} className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex gap-3">
-                        <span className="bg-muted/50 text-muted-foreground grid size-11 shrink-0 place-items-center rounded-xl">
-                          <Icon className="size-5" />
-                        </span>
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-foreground font-semibold">{op.title}</h3>
-                            <span
-                              className={cn(
-                                'rounded border px-1.5 py-0.5 text-[0.6rem] font-semibold tracking-wider',
-                                TAG_STYLES[op.tag],
-                              )}
-                            >
-                              {op.tag}
-                            </span>
-                          </div>
-                          <p className="text-muted-foreground mt-1 text-sm">
-                            {op.company} · {op.location}
-                          </p>
+              {opportunities.length === 0 && (
+                <p className="text-muted-foreground p-6 text-center text-sm">
+                  Nenhuma oportunidade nova no momento.
+                </p>
+              )}
+              {opportunities.map((op) => (
+                <article key={op.id} className="p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex gap-3">
+                      <span className="bg-muted/50 text-muted-foreground grid size-11 shrink-0 place-items-center rounded-xl">
+                        <FileText className="size-5" />
+                      </span>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-foreground font-semibold">
+                            {op.category_name ?? 'Solicitação de orçamento'}
+                          </h3>
+                          <span className="border-border bg-muted/40 text-muted-foreground rounded border px-1.5 py-0.5 text-[0.6rem] font-semibold tracking-wider">
+                            {op.source === 'marketplace' ? 'MARKETPLACE' : op.source.toUpperCase()}
+                          </span>
                         </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="font-display text-foreground text-lg font-semibold">
-                          {op.budget}
+                        <p className="text-muted-foreground mt-1 text-sm">
+                          {op.contratante_name}
+                          {op.event_name ? ` · ${op.event_name}` : ''}
                         </p>
-                        <p className="text-muted-foreground text-xs">Orçamento</p>
                       </div>
                     </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-display text-foreground text-lg font-semibold">
+                        {op.budget ? formatCurrency(Number.parseFloat(op.budget)) : '—'}
+                      </p>
+                      <p className="text-muted-foreground text-xs">Orçamento</p>
+                    </div>
+                  </div>
 
+                  {op.vision_text && (
                     <p className="text-muted-foreground mt-4 text-sm leading-relaxed">
-                      {op.description}
+                      {op.vision_text}
                     </p>
+                  )}
 
-                    <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
-                      <div className="text-muted-foreground flex items-center gap-4 text-xs">
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="size-3.5" />
-                          {op.expires}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Users className="size-3.5" />
-                          {op.proposals} propostas
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => flash(`Abrindo detalhes de "${op.title}"`)}
-                          className="h-9 px-4 text-xs"
-                        >
-                          Detalhes
-                        </Button>
-                        <Button
-                          onClick={() => router.push(`/fornecedor/proposta/${op.id}`)}
-                          className="h-9 px-4 text-xs font-semibold"
-                        >
-                          Enviar Proposta
-                        </Button>
-                      </div>
+                  <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
+                    <div className="text-muted-foreground flex items-center gap-4 text-xs">
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="size-3.5" />
+                        {new Date(op.created_at).toLocaleDateString('pt-BR')}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Users className="size-3.5" />
+                        {op.proposals_count} propostas
+                      </span>
                     </div>
-                  </article>
-                )
-              })}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={() => router.push(`/fornecedor/proposta/${op.id}`)}
+                        className="h-9 px-4 text-xs font-semibold"
+                      >
+                        Enviar Proposta
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
           </section>
 

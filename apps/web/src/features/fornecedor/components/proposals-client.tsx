@@ -1,65 +1,74 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useRouter } from 'next/navigation'
 
 import {
   Archive,
-  Camera,
   CheckCircle2,
   ChevronDown,
-  Clapperboard,
   Download,
   FileText,
-  Flower2,
-  Heart,
   Hourglass,
   MessageSquare,
-  Music4,
   Pencil,
   Plus,
-  Shirt,
-  Sparkles,
   Trash2,
-  Utensils,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { listMyProposals, type Proposal } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-import {
-  PROPOSAL_FILTERS,
-  PROPOSAL_STATUS_META,
-  PROPOSAL_SUMMARY,
-  SENT_PROPOSALS,
-  type SentProposal,
-} from '../data/supplier-data'
+import { PROPOSAL_FILTERS, PROPOSAL_STATUS_META, type ProposalStatus } from '../data/supplier-data'
 
 import { SupplierFooter, SupplierTopbar } from './supplier-topbar'
 
-const CATEGORY_ICONS = {
-  heart: Heart,
-  music: Music4,
-  camera: Camera,
-  sparkles: Sparkles,
-  video: Clapperboard,
-  flower: Flower2,
-  utensils: Utensils,
-  shirt: Shirt,
-} as const
+type Row = {
+  id: string
+  title: string
+  client: string
+  category: string
+  value: string
+  sentDate: string
+  status: ProposalStatus
+}
 
-const SUMMARY_CARDS = [
-  { icon: FileText, value: PROPOSAL_SUMMARY.total, label: 'Total Enviadas', accent: false },
-  { icon: CheckCircle2, value: PROPOSAL_SUMMARY.accepted, label: 'Aceitas', accent: true },
-  { icon: Hourglass, value: PROPOSAL_SUMMARY.inReview, label: 'Em Análise', accent: false },
-  { icon: Archive, value: PROPOSAL_SUMMARY.finished, label: 'Finalizadas', accent: false },
-] as const
+function formatCurrency(value: string): string {
+  const n = Number.parseFloat(value)
+  if (Number.isNaN(n)) return value
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function toRow(p: Proposal): Row {
+  return {
+    id: String(p.id),
+    title: p.title,
+    client: p.contratante_name,
+    category: p.category_name ?? '—',
+    value: formatCurrency(p.amount),
+    sentDate: new Date(p.created_at).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }),
+    status: p.status as Row['status'],
+  }
+}
 
 export function ProposalsClient() {
   const router = useRouter()
   const [filter, setFilter] = useState<string>('todas')
   const [toast, setToast] = useState<string | null>(null)
+  const [proposals, setProposals] = useState<Proposal[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    listMyProposals()
+      .then(setProposals)
+      .finally(() => setLoading(false))
+  }, [])
 
   function flash(msg: string) {
     setToast(msg)
@@ -67,10 +76,37 @@ export function ProposalsClient() {
     ;(flash as unknown as { _t?: number })._t = window.setTimeout(() => setToast(null), 2400)
   }
 
+  const rows = useMemo(() => proposals.map(toRow), [proposals])
+
   const filtered = useMemo(() => {
-    if (filter === 'todas') return SENT_PROPOSALS
-    return SENT_PROPOSALS.filter((p) => p.status === filter)
-  }, [filter])
+    if (filter === 'todas') return rows
+    return rows.filter((p) => p.status === filter)
+  }, [filter, rows])
+
+  const summary = useMemo(
+    () => ({
+      total: rows.length,
+      accepted: rows.filter((p) => p.status === 'aceita' || p.status === 'contrato').length,
+      inReview: rows.filter((p) => p.status === 'analise' || p.status === 'revisao').length,
+      finished: rows.filter((p) => p.status === 'finalizada').length,
+    }),
+    [rows],
+  )
+
+  const summaryCards = [
+    { icon: FileText, value: summary.total, label: 'Total Enviadas', accent: false },
+    { icon: CheckCircle2, value: summary.accepted, label: 'Aceitas', accent: true },
+    { icon: Hourglass, value: summary.inReview, label: 'Em Análise', accent: false },
+    { icon: Archive, value: summary.finished, label: 'Finalizadas', accent: false },
+  ]
+
+  if (loading) {
+    return (
+      <div className="text-muted-foreground mx-auto max-w-7xl px-6 py-10 text-sm">
+        Carregando...
+      </div>
+    )
+  }
 
   return (
     <div className="bg-background min-h-screen">
@@ -84,7 +120,7 @@ export function ProposalsClient() {
               <span className="border-primary/40 bg-primary/10 text-primary rounded-md border px-3 py-1 text-xs font-semibold tracking-wider">
                 {'• GESTÃO DE PROPOSTAS •'}
               </span>
-              <span className="text-muted-foreground text-sm">{PROPOSAL_SUMMARY.period}</span>
+              <span className="text-muted-foreground text-sm">Tempo real</span>
             </div>
             <h1 className="font-display text-foreground mt-3 text-4xl font-semibold">
               Suas Propostas
@@ -115,7 +151,7 @@ export function ProposalsClient() {
 
         {/* Summary cards */}
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {SUMMARY_CARDS.map((c) => (
+          {summaryCards.map((c) => (
             <div key={c.label} className="border-border/60 bg-card rounded-xl border p-5">
               <div className="flex items-center gap-4">
                 <div
@@ -196,7 +232,7 @@ export function ProposalsClient() {
           {/* Footer / pagination */}
           <div className="flex flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-muted-foreground text-xs">
-              Exibindo {filtered.length} de {PROPOSAL_SUMMARY.total} propostas
+              Exibindo {filtered.length} de {summary.total} propostas
             </p>
             <div className="flex items-center gap-1">
               <button
@@ -249,11 +285,10 @@ function ProposalRow({
   onAction,
   onChat,
 }: {
-  proposal: SentProposal
+  proposal: Row
   onAction: (msg: string) => void
   onChat: () => void
 }) {
-  const Icon = CATEGORY_ICONS[p.icon as keyof typeof CATEGORY_ICONS] ?? FileText
   const status = PROPOSAL_STATUS_META[p.status]
   const closed = p.status === 'finalizada' || p.status === 'recusada'
 
@@ -267,13 +302,11 @@ function ProposalRow({
       {/* event / client */}
       <div className="flex items-center gap-3">
         <div className="bg-muted/50 text-muted-foreground grid size-9 shrink-0 place-items-center rounded-lg">
-          <Icon className="size-4" />
+          <FileText className="size-4" />
         </div>
         <div className="min-w-0">
           <p className="text-foreground truncate text-sm font-semibold">{p.title}</p>
-          <p className="text-muted-foreground truncate text-xs">
-            {p.client} · {p.location}
-          </p>
+          <p className="text-muted-foreground truncate text-xs">{p.client}</p>
         </div>
       </div>
 
@@ -289,10 +322,7 @@ function ProposalRow({
       <div className="text-foreground text-sm font-semibold">{p.value}</div>
 
       {/* sent date */}
-      <div className="text-foreground text-sm">
-        {p.sentDate}
-        <span className="text-muted-foreground block text-xs">{p.sentAgo}</span>
-      </div>
+      <div className="text-foreground text-sm">{p.sentDate}</div>
 
       {/* status */}
       <div>

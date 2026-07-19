@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -8,47 +8,30 @@ import { useRouter } from 'next/navigation'
 import {
   ArrowLeft,
   BadgeCheck,
-  CalendarCheck,
   ChevronDown,
   Eye,
   FileText,
   Info,
-  Laptop,
   Link2,
   Paperclip,
   Save,
   SendHorizonal,
-  Shirt,
-  Utensils,
   X,
 } from 'lucide-react'
 
 import { BrandMark } from '@/components/brand/brand-mark'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-
 import {
-  CATEGORY_OPTIONS,
-  CLAUSE_CHIPS,
-  OPPORTUNITIES,
-  PAYMENT_OPTIONS,
-  PROPOSAL_DEFAULTS,
-  SUPPLIER_USER,
-  VALIDITY_OPTIONS,
-  type ProposalItem,
-} from '../data/supplier-data'
+  createProposal,
+  getOpportunity,
+  listCategories,
+  type Opportunity,
+  type ServiceCategory,
+} from '@/lib/api'
 
-const OPP_ICONS = {
-  shirt: Shirt,
-  utensils: Utensils,
-  laptop: Laptop,
-} as const
+import { CLAUSE_CHIPS, PAYMENT_OPTIONS, SUPPLIER_USER } from '../data/supplier-data'
 
-const TAG_STYLES: Record<string, string> = {
-  URGENTE: 'border-destructive/40 bg-destructive/10 text-destructive',
-  'ALTO VALOR': 'border-primary/40 bg-primary/10 text-primary',
-  RECORRENTE: 'border-border bg-muted/40 text-muted-foreground',
-}
+type FormItem = { id: string; description: string; qty: number; unit: string; unitValue: number }
 
 const SCOPE_CLAUSES: Record<string, string> = {
   GARANTIA: 'Garantia de 12 meses contra defeitos de fabricação.',
@@ -64,22 +47,50 @@ function formatBRL(value: number) {
 
 export function ProposalForm({ opportunityId }: { opportunityId: string }) {
   const router = useRouter()
+  const opportunityIdNum = Number(opportunityId)
 
-  const opportunity = OPPORTUNITIES.find((o) => o.id === opportunityId) ?? OPPORTUNITIES[0]
-  const defaults = PROPOSAL_DEFAULTS[opportunity.id] ?? PROPOSAL_DEFAULTS['op-1']
+  const [opportunity, setOpportunity] = useState<Opportunity | null>(null)
+  const [categories, setCategories] = useState<ServiceCategory[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
-  const [title, setTitle] = useState(defaults.title)
-  const [category, setCategory] = useState(defaults.category)
-  const [deadline, setDeadline] = useState(defaults.deadline)
-  const [amount, setAmount] = useState(defaults.amount)
-  const [paymentTerm, setPaymentTerm] = useState(defaults.paymentTerm)
-  const [validity, setValidity] = useState(defaults.validity)
-  const [items, setItems] = useState<ProposalItem[]>(defaults.items)
-  const [scope, setScope] = useState(defaults.scope)
+  const [title, setTitle] = useState('')
+  const [categoryId, setCategoryId] = useState<number | null>(null)
+  const [deadline, setDeadline] = useState('')
+  const [amount, setAmount] = useState(0)
+  const [paymentTerm, setPaymentTerm] = useState<string>(PAYMENT_OPTIONS[0])
+  const [validityDays, setValidityDays] = useState(15)
+  const [items, setItems] = useState<FormItem[]>([
+    { id: 'it-1', description: '', qty: 1, unit: 'un', unitValue: 0 },
+  ])
+  const [scope, setScope] = useState('')
   const [notes, setNotes] = useState('')
-  const [attachments, setAttachments] = useState<string[]>(['ficha_tecnica_uniformes.pdf'])
+  const [attachments, setAttachments] = useState<string[]>([])
   const [toast, setToast] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
+  const [sending, setSending] = useState(false)
+
+  useEffect(() => {
+    if (!opportunityIdNum) {
+      setLoadError(true)
+      setLoading(false)
+      return
+    }
+    Promise.all([getOpportunity(opportunityIdNum), listCategories()])
+      .then(([fetchedOpportunity, fetchedCategories]) => {
+        setOpportunity(fetchedOpportunity)
+        setCategories(fetchedCategories)
+        setTitle(`Proposta — ${fetchedOpportunity.category_name ?? 'Solicitação'}`)
+        if (fetchedOpportunity.budget) setAmount(Number.parseFloat(fetchedOpportunity.budget))
+        const matchedCategory = fetchedCategories.find(
+          (c) => c.name === fetchedOpportunity.category_name,
+        )
+        if (matchedCategory) setCategoryId(matchedCategory.id)
+        setScope(fetchedOpportunity.vision_text ?? '')
+      })
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
+  }, [opportunityIdNum])
 
   const itemsSubtotal = useMemo(
     () => items.reduce((sum, it) => sum + it.qty * it.unitValue, 0),
@@ -93,7 +104,7 @@ export function ProposalForm({ opportunityId }: { opportunityId: string }) {
     ;(flash as unknown as { t?: number }).t = window.setTimeout(() => setToast(null), 2600)
   }
 
-  function updateItem(id: string, patch: Partial<ProposalItem>) {
+  function updateItem(id: string, patch: Partial<FormItem>) {
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)))
   }
 
@@ -114,15 +125,54 @@ export function ProposalForm({ opportunityId }: { opportunityId: string }) {
     flash(`Cláusula "${clause}" inserida no escopo.`)
   }
 
-  function handleSubmit() {
-    setSent(true)
-    flash(
-      `Proposta enviada e vinculada ao evento ${opportunity.eventCode}! O comprador foi notificado.`,
-    )
-    window.setTimeout(() => router.push('/fornecedor'), 1800)
+  async function handleSubmit() {
+    if (!opportunity) return
+    setSending(true)
+    try {
+      await createProposal({
+        quote_request_id: opportunity.id,
+        title,
+        category_id: categoryId,
+        deadline: deadline || null,
+        amount,
+        payment_term: paymentTerm,
+        validity_days: validityDays,
+        scope_text: scope,
+        notes: notes || null,
+        items: items
+          .filter((it) => it.description.trim())
+          .map((it) => ({
+            description: it.description,
+            qty: it.qty,
+            unit: it.unit,
+            unit_value: it.unitValue,
+          })),
+      })
+      setSent(true)
+      flash('Proposta enviada e vinculada à solicitação! O comprador foi notificado.')
+      window.setTimeout(() => router.push('/fornecedor'), 1800)
+    } catch {
+      flash('Não foi possível enviar a proposta. Tente novamente.')
+    } finally {
+      setSending(false)
+    }
   }
 
-  const OppIcon = OPP_ICONS[opportunity.icon as keyof typeof OPP_ICONS] ?? FileText
+  if (loading) {
+    return (
+      <div className="text-muted-foreground mx-auto max-w-3xl px-4 py-16 text-center text-sm">
+        Carregando...
+      </div>
+    )
+  }
+
+  if (loadError || !opportunity) {
+    return (
+      <div className="text-muted-foreground mx-auto max-w-3xl px-4 py-16 text-center text-sm">
+        Oportunidade não encontrada.
+      </div>
+    )
+  }
 
   return (
     <div className="bg-background min-h-screen">
@@ -197,65 +247,55 @@ export function ProposalForm({ opportunityId }: { opportunityId: string }) {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-start gap-3">
               <div className="bg-muted/50 text-primary grid size-11 shrink-0 place-items-center rounded-lg">
-                <OppIcon className="size-5" />
+                <FileText className="size-5" />
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-foreground font-semibold">{opportunity.title}</h2>
-                  <span
-                    className={cn(
-                      'rounded-md border px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide',
-                      TAG_STYLES[opportunity.tag],
-                    )}
-                  >
-                    {opportunity.tag}
-                  </span>
+                  <h2 className="text-foreground font-semibold">
+                    {opportunity.category_name ?? 'Solicitação de orçamento'}
+                  </h2>
                 </div>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {opportunity.company} · {opportunity.location} · {opportunity.expires}
-                </p>
+                <p className="text-muted-foreground mt-1 text-xs">{opportunity.contratante_name}</p>
               </div>
             </div>
             <div className="text-right">
               <p className="text-muted-foreground text-xs">Orçamento disponível</p>
               <p className="font-display text-foreground text-xl font-semibold">
-                {opportunity.budget}
+                {opportunity.budget
+                  ? `R$ ${formatBRL(Number.parseFloat(opportunity.budget))}`
+                  : 'Não informado'}
               </p>
             </div>
           </div>
 
           {/* linked event association */}
-          <div className="border-primary/25 bg-primary/5 mt-4 rounded-lg border p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <Link2 className="text-primary size-3.5" />
-              <span className="text-primary text-[0.65rem] font-semibold tracking-widest">
-                EVENTO VINCULADO
-              </span>
-              <span className="bg-primary/10 text-primary ml-auto inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[0.65rem] font-semibold">
-                <BadgeCheck className="size-3" />
-                Verificado
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-              <div>
-                <p className="text-foreground text-sm font-semibold">
-                  {opportunity.eventName}{' '}
-                  <span className="text-muted-foreground font-mono text-xs font-normal">
-                    · {opportunity.eventCode}
-                  </span>
-                </p>
-                <p className="text-muted-foreground mt-0.5 text-xs">{opportunity.clientName}</p>
+          {opportunity.event_name && (
+            <div className="border-primary/25 bg-primary/5 mt-4 rounded-lg border p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <Link2 className="text-primary size-3.5" />
+                <span className="text-primary text-[0.65rem] font-semibold tracking-widest">
+                  EVENTO VINCULADO
+                </span>
+                <span className="bg-primary/10 text-primary ml-auto inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[0.65rem] font-semibold">
+                  <BadgeCheck className="size-3" />
+                  Verificado
+                </span>
               </div>
-              <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                <CalendarCheck className="text-primary size-3.5" />
-                {opportunity.eventDate}
+              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+                <div>
+                  <p className="text-foreground text-sm font-semibold">{opportunity.event_name}</p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    {opportunity.contratante_name}
+                  </p>
+                </div>
               </div>
+              <p className="border-primary/15 text-muted-foreground mt-3 border-t pt-3 text-xs">
+                Esta proposta será enviada e associada automaticamente ao evento{' '}
+                <span className="text-foreground">{opportunity.event_name}</span> criado pelo
+                cliente.
+              </p>
             </div>
-            <p className="border-primary/15 text-muted-foreground mt-3 border-t pt-3 text-xs">
-              Esta proposta será enviada e associada automaticamente ao evento{' '}
-              <span className="text-foreground">{opportunity.eventCode}</span> criado pelo cliente.
-            </p>
-          </div>
+          )}
         </div>
 
         <div className="space-y-8">
@@ -271,16 +311,17 @@ export function ProposalForm({ opportunityId }: { opportunityId: string }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="CATEGORIA">
                 <SelectBox
-                  value={category}
-                  onChange={setCategory}
-                  options={[...CATEGORY_OPTIONS]}
+                  value={categoryId !== null ? String(categoryId) : ''}
+                  onChange={(v) => setCategoryId(v ? Number(v) : null)}
+                  options={categories.map((c) => ({ value: String(c.id), label: c.name }))}
                 />
               </Field>
               <Field label="PRAZO DE ENTREGA">
                 <input
+                  type="date"
                   value={deadline}
                   onChange={(e) => setDeadline(e.target.value)}
-                  className="border-border bg-input text-foreground focus:border-primary h-12 w-full rounded-lg border px-4 text-sm transition-colors outline-none"
+                  className="border-border bg-input text-foreground focus:border-primary h-12 w-full rounded-lg border px-4 text-sm [color-scheme:dark] transition-colors outline-none"
                 />
               </Field>
             </div>
@@ -303,14 +344,15 @@ export function ProposalForm({ opportunityId }: { opportunityId: string }) {
                 <SelectBox
                   value={paymentTerm}
                   onChange={setPaymentTerm}
-                  options={[...PAYMENT_OPTIONS]}
+                  options={PAYMENT_OPTIONS.map((p) => ({ value: p, label: p }))}
                 />
               </Field>
-              <Field label="VALIDADE DA PROPOSTA">
-                <SelectBox
-                  value={validity}
-                  onChange={setValidity}
-                  options={[...VALIDITY_OPTIONS]}
+              <Field label="VALIDADE DA PROPOSTA (DIAS)">
+                <input
+                  type="number"
+                  value={validityDays}
+                  onChange={(e) => setValidityDays(Number(e.target.value) || 0)}
+                  className="border-border bg-input text-foreground focus:border-primary h-12 w-full rounded-lg border px-4 text-sm transition-colors outline-none"
                 />
               </Field>
             </div>
@@ -318,8 +360,8 @@ export function ProposalForm({ opportunityId }: { opportunityId: string }) {
               <Info className="text-primary mt-0.5 size-4 shrink-0" />
               <p>
                 Sua proposta expirará em{' '}
-                <span className="text-foreground font-medium">{defaults.validUntil}</span>. O
-                comprador tem até esta data para aceitar.
+                <span className="text-foreground font-medium">{validityDays} dias</span> após o
+                envio. O comprador tem até esta data para aceitar.
               </p>
             </div>
           </Section>
@@ -524,10 +566,10 @@ export function ProposalForm({ opportunityId }: { opportunityId: string }) {
             </div>
             <Button
               onClick={handleSubmit}
-              disabled={sent}
+              disabled={sent || sending}
               className="h-11 gap-2 px-6 text-sm font-semibold"
             >
-              {sent ? 'Enviada' : 'Enviar Proposta'}
+              {sent ? 'Enviada' : sending ? 'Enviando...' : 'Enviar Proposta'}
               <SendHorizonal className="size-4" />
             </Button>
           </div>
@@ -604,7 +646,7 @@ function SelectBox({
 }: {
   value: string
   onChange: (v: string) => void
-  options: string[]
+  options: { value: string; label: string }[]
 }) {
   return (
     <div className="relative">
@@ -614,8 +656,8 @@ function SelectBox({
         className="border-border bg-input text-foreground focus:border-primary h-12 w-full appearance-none rounded-lg border px-4 pr-10 text-sm transition-colors outline-none"
       >
         {options.map((opt) => (
-          <option key={opt} value={opt} className="bg-card text-foreground">
-            {opt}
+          <option key={opt.value} value={opt.value} className="bg-card text-foreground">
+            {opt.label}
           </option>
         ))}
       </select>

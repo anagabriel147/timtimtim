@@ -1,52 +1,31 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import {
   Archive,
   Calendar,
-  Camera,
   ChevronDown,
   CircleCheck,
   FileSignature,
   FileText,
-  Heart,
   Hourglass,
   Info,
   Lock,
-  LogOut,
   MapPin,
   MessageSquare,
-  Music4,
   Search,
   Shield,
-  Shirt,
-  Sparkles,
-  Video,
   X,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { type Contract, listContracts } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-import {
-  CONTRACT_FILTERS,
-  CONTRACT_STATUS_META,
-  CONTRACT_SUMMARY,
-  SUPPLIER_CONTRACTS,
-  type SupplierContract,
-} from '../data/supplier-data'
+import { CONTRACT_FILTERS, CONTRACT_STATUS_META } from '../data/supplier-data'
 
 import { SupplierFooter, SupplierTopbar } from './supplier-topbar'
-
-const CONTRACT_ICONS = {
-  heart: Heart,
-  music: Music4,
-  camera: Camera,
-  video: Video,
-  sparkles: Sparkles,
-  shirt: Shirt,
-} as const
 
 const NOTE_ICONS = {
   lock: Lock,
@@ -62,12 +41,81 @@ const STATUS_MINI = [
   { status: 'cancelado' as const, icon: X, label: 'Cancelado' },
 ]
 
+type Row = {
+  id: string
+  title: string
+  client: string
+  code: string
+  date: string
+  location: string
+  category: string
+  value: string
+  installments: string
+  status: 'garantido' | 'quitado' | 'aguardando' | 'cancelado'
+}
+
+function formatCurrency(value: string): string {
+  const n = Number.parseFloat(value)
+  if (Number.isNaN(n)) return value
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function toRow(c: Contract): Row {
+  return {
+    id: String(c.id),
+    title: c.event_name,
+    client: c.contratante_name,
+    code: c.contract_code,
+    date: new Date(c.created_at).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }),
+    location: c.event_city ?? '—',
+    category: '—',
+    value: formatCurrency(c.value),
+    installments: `${c.installments_count}x`,
+    status: c.payment_status as Row['status'],
+  }
+}
+
 export function SupplierContractsClient() {
-  const s = CONTRACT_SUMMARY
+  const [contracts, setContracts] = useState<Contract[]>([])
+  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<(typeof CONTRACT_FILTERS)[number]['id']>('todos')
   const [query, setQuery] = useState('')
   const [archived, setArchived] = useState<Record<string, boolean>>({})
   const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    listContracts()
+      .then(setContracts)
+      .finally(() => setLoading(false))
+  }, [])
+
+  const rows = useMemo(() => contracts.map(toRow), [contracts])
+
+  const s = useMemo(() => {
+    const byStatus = (status: Row['status']) => rows.filter((r) => r.status === status).length
+    const total = rows.length
+    const quitado = byStatus('quitado')
+    const garantido = byStatus('garantido')
+    const aguardando = byStatus('aguardando')
+    const cancelado = byStatus('cancelado')
+    const escrowTotal = contracts
+      .filter((c) => c.payment_status === 'garantido')
+      .reduce((sum, c) => sum + Number.parseFloat(c.value), 0)
+    const completionRate = total > 0 ? Math.round((quitado / total) * 100) : 0
+    return {
+      total,
+      active: total - cancelado,
+      confirmed: garantido + quitado,
+      inProgress: aguardando,
+      completionRate,
+      escrowTotal: formatCurrency(String(escrowTotal)),
+      counts: { quitado, garantido, aguardando, cancelado },
+    }
+  }, [rows, contracts])
 
   function flash(msg: string) {
     setToast(msg)
@@ -76,7 +124,7 @@ export function SupplierContractsClient() {
   }
 
   const visible = useMemo(() => {
-    return SUPPLIER_CONTRACTS.filter((c) => {
+    return rows.filter((c) => {
       if (archived[c.id]) return false
       if (filter !== 'todos' && c.status !== filter) return false
       if (query.trim()) {
@@ -89,7 +137,15 @@ export function SupplierContractsClient() {
       }
       return true
     })
-  }, [filter, query, archived])
+  }, [rows, filter, query, archived])
+
+  if (loading) {
+    return (
+      <div className="text-muted-foreground mx-auto max-w-7xl px-6 py-10 text-sm">
+        Carregando...
+      </div>
+    )
+  }
 
   return (
     <div className="bg-background text-foreground min-h-screen">
@@ -109,7 +165,7 @@ export function SupplierContractsClient() {
               <span className="border-primary/40 text-primary rounded-md border px-2.5 py-1 text-[0.65rem] font-semibold tracking-widest">
                 • CONTRATOS FECHADOS •
               </span>
-              <span className="text-muted-foreground text-sm">{s.period}</span>
+              <span className="text-muted-foreground text-sm">Tempo real</span>
             </div>
             <h1 className="font-display text-4xl font-semibold text-balance">Seus Contratos</h1>
             <p className="text-muted-foreground mt-2 text-sm">
@@ -148,14 +204,6 @@ export function SupplierContractsClient() {
                       <span className="text-muted-foreground text-sm">de {s.total} totais</span>
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-muted-foreground text-xs">Próximo evento</p>
-                    <div className="border-border bg-input mt-1 inline-flex items-center gap-2 rounded-lg border px-3 py-1.5">
-                      <Calendar className="text-primary size-3.5" />
-                      <span className="text-foreground text-sm font-medium">{s.nextEvent}</span>
-                    </div>
-                    <p className="text-muted-foreground mt-1 text-xs">{s.nextEventIn}</p>
-                  </div>
                 </div>
                 <div className="text-muted-foreground mt-4 flex items-center gap-4 text-xs">
                   <span className="flex items-center gap-1.5">
@@ -173,11 +221,11 @@ export function SupplierContractsClient() {
                 <div className="bg-muted mt-2 h-1.5 overflow-hidden rounded-full">
                   <div
                     className="bg-primary h-full rounded-full"
-                    style={{ width: `${s.completedSemester}%` }}
+                    style={{ width: `${s.completionRate}%` }}
                   />
                 </div>
                 <p className="text-muted-foreground mt-2 text-xs">
-                  {s.completedSemester}% dos eventos deste semestre concluídos
+                  {s.completionRate}% dos contratos já quitados
                 </p>
               </div>
             </div>
@@ -192,7 +240,7 @@ export function SupplierContractsClient() {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <p className="text-muted-foreground text-[0.65rem] font-semibold tracking-widest">
-                    SALDO A LIBERAR
+                    EM CUSTÓDIA (GARANTIDO)
                   </p>
                   <span className="bg-primary/20 text-primary rounded-md px-2 py-0.5 text-[0.6rem] font-semibold tracking-wider">
                     GARANTIDO
@@ -206,38 +254,17 @@ export function SupplierContractsClient() {
                     <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-4 text-xs">
                       <span className="flex items-center gap-1.5">
                         <Lock className="text-primary size-3.5" />
-                        {s.escrowCustody} em custódia
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <LogOut className="text-primary size-3.5" />
-                        {s.escrowToRelease} a liberar
+                        {s.counts.garantido} contratos em custódia
                       </span>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <div className="border-border bg-input rounded-lg border px-3 py-2 text-right">
-                      <p className="text-muted-foreground text-[0.65rem]">A receber (30d)</p>
-                      <p className="font-display text-primary text-base font-semibold">
-                        {s.toReceive30d}
-                      </p>
-                    </div>
-                    <div className="border-border bg-input rounded-lg border px-3 py-2 text-right">
-                      <p className="text-muted-foreground text-[0.65rem]">Contratos quitados</p>
-                      <p className="font-display text-foreground text-base font-semibold">
-                        {s.settled} / {s.total}
-                      </p>
-                    </div>
+                  <div className="border-border bg-input rounded-lg border px-3 py-2 text-right">
+                    <p className="text-muted-foreground text-[0.65rem]">Contratos quitados</p>
+                    <p className="font-display text-foreground text-base font-semibold">
+                      {s.counts.quitado} / {s.total}
+                    </p>
                   </div>
                 </div>
-                <div className="bg-muted mt-4 h-1.5 overflow-hidden rounded-full">
-                  <div
-                    className="bg-primary h-full rounded-full"
-                    style={{ width: `${s.escrowPercent}%` }}
-                  />
-                </div>
-                <p className="text-muted-foreground mt-2 text-xs">
-                  {s.escrowPercent}% do valor total já recebido nos contratos
-                </p>
               </div>
             </div>
           </div>
@@ -436,11 +463,11 @@ function ContractRow({
   onAction,
   onArchive,
 }: {
-  contract: SupplierContract
+  contract: Row
   onAction: (msg: string) => void
   onArchive: () => void
 }) {
-  const Icon = CONTRACT_ICONS[c.icon as keyof typeof CONTRACT_ICONS] ?? FileText
+  const Icon = FileText
   const meta = CONTRACT_STATUS_META[c.status]
   const NoteIcon = NOTE_ICONS[meta.noteIcon as keyof typeof NOTE_ICONS]
   const cancelled = c.status === 'cancelado'

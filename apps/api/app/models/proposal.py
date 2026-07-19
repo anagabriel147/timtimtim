@@ -32,6 +32,8 @@ class QuoteRequest(Base):
 
     contratante: Mapped["User"] = relationship(foreign_keys=[contratante_id])
     provider: Mapped["User | None"] = relationship(foreign_keys=[provider_id])
+    event: Mapped["Event | None"] = relationship()
+    category: Mapped["ServiceCategory | None"] = relationship()
     proposals: Mapped[list["Proposal"]] = relationship(back_populates="quote_request")
 
 
@@ -58,6 +60,7 @@ class Proposal(Base):
 
     quote_request: Mapped["QuoteRequest"] = relationship(back_populates="proposals")
     provider: Mapped["User"] = relationship()
+    category: Mapped["ServiceCategory | None"] = relationship()
     items: Mapped[list["ProposalItem"]] = relationship(
         back_populates="proposal", cascade="all, delete-orphan"
     )
