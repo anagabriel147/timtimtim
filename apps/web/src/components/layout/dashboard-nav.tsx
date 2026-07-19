@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { Bell, ChevronDown, LogOut, Plus, Settings, User } from 'lucide-react'
 
 import { BrandMark } from '@/components/brand/brand-mark'
+import { MobileNavMenu } from '@/components/layout/mobile-nav-menu'
 import { Button } from '@/components/ui/button'
 import { CONTRATANTE_DASHBOARD_NAV, CONTRATANTE_USER } from '@/config/navigation'
 import { cn } from '@/lib/utils'
@@ -52,18 +53,24 @@ export function DashboardNav({
         </nav>
 
         <div className="flex items-center gap-3">
-          <Button
-            onClick={onNewEvent}
-            className="hidden h-10 gap-2 px-4 text-sm font-medium sm:flex"
-          >
+          <MobileNavMenu
+            className="lg:hidden"
+            items={CONTRATANTE_DASHBOARD_NAV.map((link) => ({
+              label: link.label,
+              onClick: () => router.push(link.href),
+              active: link.label === activeLabel,
+            }))}
+          />
+
+          <Button onClick={onNewEvent} className="h-12 gap-2 px-4 text-sm font-medium sm:h-10">
             <Plus className="size-4" />
-            Novo Evento
+            <span className="hidden sm:inline">Novo Evento</span>
           </Button>
 
           <button
             type="button"
             aria-label="Notificações"
-            className="border-border bg-secondary/40 text-muted-foreground hover:text-foreground relative grid size-10 place-items-center rounded-lg border transition-colors"
+            className="border-border bg-secondary/40 text-muted-foreground hover:text-foreground relative hidden size-10 place-items-center rounded-lg border transition-colors sm:grid"
           >
             <Bell className="size-4" />
             <span className="bg-primary absolute top-2.5 right-2.5 size-1.5 rounded-full" />

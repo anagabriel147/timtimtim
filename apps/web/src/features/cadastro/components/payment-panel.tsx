@@ -407,7 +407,7 @@ function PixView({ b, planName }: { b: PlanData['billing'][BillingCycle]; planNa
       </Button>
 
       {/* badges */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <PixBadge icon={<Zap className="size-4" />} text="Aprovação imediata" />
         <PixBadge icon={<HelpCircle className="size-4" />} text="100% seguro" />
         <PixBadge icon={<Clock className="size-4" />} text="Disponível 24/7" />

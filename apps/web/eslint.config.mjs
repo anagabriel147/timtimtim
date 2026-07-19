@@ -5,13 +5,7 @@ import importPlugin from 'eslint-plugin-import'
 
 export default tseslint.config(
   {
-    ignores: [
-      '.next/**',
-      'node_modules/**',
-      'next-env.d.ts',
-      'cypress/**',
-      'cypress.config.ts',
-    ],
+    ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts', 'cypress/**', 'cypress.config.ts'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

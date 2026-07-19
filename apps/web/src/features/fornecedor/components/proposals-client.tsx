@@ -343,7 +343,7 @@ function ProposalRow({
             <Button
               variant="outline"
               onClick={() => onAction(`Abrindo detalhes de "${p.title}"`)}
-              className="text-muted-foreground h-9 gap-1.5 px-3 text-xs"
+              className="text-muted-foreground h-12 gap-1.5 px-3 text-xs sm:h-9"
             >
               Ver Detalhes
             </Button>
@@ -356,7 +356,7 @@ function ProposalRow({
                     : `Proposta "${p.title}" arquivada.`,
                 )
               }
-              className="text-muted-foreground h-9 gap-1.5 px-3 text-xs"
+              className="text-muted-foreground h-12 gap-1.5 px-3 text-xs sm:h-9"
             >
               {p.status === 'recusada' ? (
                 <Trash2 className="size-3.5" />
@@ -368,7 +368,7 @@ function ProposalRow({
           </>
         ) : (
           <>
-            <Button onClick={onChat} className="h-9 gap-1.5 px-3 text-xs font-semibold">
+            <Button onClick={onChat} className="h-12 gap-1.5 px-3 text-xs font-semibold sm:h-9">
               <MessageSquare className="size-3.5" />
               Abrir Conversa
             </Button>
@@ -376,7 +376,7 @@ function ProposalRow({
               <Button
                 variant="outline"
                 onClick={() => onAction(`Editando proposta "${p.title}"`)}
-                className="text-muted-foreground h-9 gap-1.5 px-3 text-xs"
+                className="text-muted-foreground h-12 gap-1.5 px-3 text-xs sm:h-9"
               >
                 <Pencil className="size-3.5" />
                 Editar
@@ -385,7 +385,7 @@ function ProposalRow({
               <Button
                 variant="outline"
                 onClick={() => onAction(`Abrindo PDF de "${p.title}"`)}
-                className="text-muted-foreground h-9 gap-1.5 px-3 text-xs"
+                className="text-muted-foreground h-12 gap-1.5 px-3 text-xs sm:h-9"
               >
                 <FileText className="size-3.5" />
                 Ver PDF

@@ -225,7 +225,7 @@ export function ContractsClient() {
               ))}
             </div>
             <div className="flex items-center gap-3">
-              <div className="border-border bg-background/60 flex h-9 items-center gap-2 rounded-lg border px-3">
+              <div className="border-border bg-background/60 flex h-12 items-center gap-2 rounded-lg border px-3 sm:h-9">
                 <Search className="text-muted-foreground size-4" />
                 <input
                   value={query}
@@ -237,7 +237,7 @@ export function ContractsClient() {
               <button
                 type="button"
                 onClick={() => flash('Ordenando por data do evento...')}
-                className="border-border bg-background/60 text-muted-foreground hover:text-foreground flex h-9 items-center gap-2 rounded-lg border px-3 text-sm transition-colors"
+                className="border-border bg-background/60 text-muted-foreground hover:text-foreground flex h-12 items-center gap-2 rounded-lg border px-3 text-sm transition-colors sm:h-9"
               >
                 Data do Evento
                 <ChevronDown className="size-4" />
@@ -465,25 +465,29 @@ function ContractRow({
 
       {/* actions */}
       <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
-        <Button onClick={onOpen} className="h-9 gap-1.5 px-3 text-xs font-semibold">
+        <Button onClick={onOpen} className="h-12 gap-1.5 px-3 text-xs font-semibold sm:h-9">
           <FileText className="size-3.5" />
           Ver Contrato
         </Button>
         {!cancelled && (
-          <Button variant="outline" onClick={onRate} className="h-9 gap-1.5 px-3 text-xs">
+          <Button variant="outline" onClick={onRate} className="h-12 gap-1.5 px-3 text-xs sm:h-9">
             <Star className="size-3.5" />
             Avaliar
           </Button>
         )}
 
         {!cancelled && (
-          <Button variant="outline" onClick={onChat} className="h-9 gap-1.5 px-3 text-xs">
+          <Button variant="outline" onClick={onChat} className="h-12 gap-1.5 px-3 text-xs sm:h-9">
             <MessageSquare className="size-3.5" />
             Conversa
           </Button>
         )}
         {!cancelled && (
-          <Button variant="outline" onClick={onDispute} className="h-9 gap-1.5 px-3 text-xs">
+          <Button
+            variant="outline"
+            onClick={onDispute}
+            className="h-12 gap-1.5 px-3 text-xs sm:h-9"
+          >
             <Scale className="size-3.5" />
             Disputa
           </Button>
@@ -495,7 +499,7 @@ function ContractRow({
               ? onAction(`Contrato ${c.contractCode} arquivado.`)
               : onAction(`Abrindo contrato ${c.contractCode} em PDF...`)
           }
-          className="text-muted-foreground h-9 gap-1.5 px-3 text-xs"
+          className="text-muted-foreground h-12 gap-1.5 px-3 text-xs sm:h-9"
         >
           <FileText className="size-3.5" />
           {cancelled ? 'Arquivar' : 'Ver PDF'}

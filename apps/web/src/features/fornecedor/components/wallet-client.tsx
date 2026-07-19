@@ -341,78 +341,141 @@ export function WalletClient() {
                   Você ainda não solicitou nenhum saque.
                 </p>
               ) : (
-                <div className="mt-5 overflow-x-auto">
-                  <table className="w-full min-w-[560px] border-collapse">
-                    <thead>
-                      <tr className="border-border/60 text-muted-foreground border-b text-left text-[0.65rem] font-semibold tracking-widest">
-                        <th className="pb-3 font-semibold">DATA</th>
-                        <th className="pb-3 font-semibold">REFERÊNCIA</th>
-                        <th className="pb-3 font-semibold">STATUS</th>
-                        <th className="pb-3 font-semibold">MÉTODO</th>
-                        <th className="pb-3 text-right font-semibold">VALOR</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {payouts.map((p) => {
-                        const meta = WITHDRAW_STATUS_META[p.status] ?? WITHDRAW_STATUS_META.analise
-                        const isTransfer = p.status === 'transferido'
-                        const created = new Date(p.created_at)
-                        return (
-                          <tr key={p.id} className="border-border/40 border-b last:border-0">
-                            <td className="py-4 pr-4">
-                              <div className="flex items-center gap-2.5">
-                                <span className={cn('size-2 shrink-0 rounded-full', meta.dot)} />
-                                <div>
-                                  <p className="text-foreground text-sm font-medium">
-                                    {created.toLocaleDateString('pt-BR')}
-                                  </p>
-                                  <p className="text-muted-foreground text-xs">
-                                    {created.toLocaleTimeString('pt-BR', {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
-                                  </p>
+                <>
+                  {/* Tabela — telas largas o bastante pra não precisar de scroll horizontal */}
+                  <div className="mt-5 hidden overflow-x-auto sm:block">
+                    <table className="w-full min-w-[560px] border-collapse">
+                      <thead>
+                        <tr className="border-border/60 text-muted-foreground border-b text-left text-[0.65rem] font-semibold tracking-widest">
+                          <th className="pb-3 font-semibold">DATA</th>
+                          <th className="pb-3 font-semibold">REFERÊNCIA</th>
+                          <th className="pb-3 font-semibold">STATUS</th>
+                          <th className="pb-3 font-semibold">MÉTODO</th>
+                          <th className="pb-3 text-right font-semibold">VALOR</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payouts.map((p) => {
+                          const meta =
+                            WITHDRAW_STATUS_META[p.status] ?? WITHDRAW_STATUS_META.analise
+                          const isTransfer = p.status === 'transferido'
+                          const created = new Date(p.created_at)
+                          return (
+                            <tr key={p.id} className="border-border/40 border-b last:border-0">
+                              <td className="py-4 pr-4">
+                                <div className="flex items-center gap-2.5">
+                                  <span className={cn('size-2 shrink-0 rounded-full', meta.dot)} />
+                                  <div>
+                                    <p className="text-foreground text-sm font-medium">
+                                      {created.toLocaleDateString('pt-BR')}
+                                    </p>
+                                    <p className="text-muted-foreground text-xs">
+                                      {created.toLocaleTimeString('pt-BR', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </p>
+                                  </div>
                                 </div>
+                              </td>
+                              <td className="py-4 pr-4">
+                                <p className="text-foreground text-sm">{p.pix_key ?? '—'}</p>
+                                <p className="text-muted-foreground text-xs">{p.reference}</p>
+                              </td>
+                              <td className="py-4 pr-4">
+                                <span
+                                  className={cn(
+                                    'inline-block rounded-md border px-2 py-0.5 text-[0.65rem] font-semibold',
+                                    meta.className,
+                                  )}
+                                >
+                                  {meta.label}
+                                </span>
+                              </td>
+                              <td className="py-4 pr-4">
+                                <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
+                                  <span className="bg-primary/20 text-primary grid size-4 place-items-center rounded text-[0.6rem] font-bold">
+                                    P
+                                  </span>
+                                  Pix
+                                </span>
+                              </td>
+                              <td className="py-4 text-right">
+                                <span
+                                  className={cn(
+                                    'inline-block rounded-md px-2.5 py-1 text-sm font-semibold',
+                                    isTransfer ? 'bg-primary/10 text-primary' : 'text-foreground',
+                                  )}
+                                >
+                                  {formatCurrency(Number.parseFloat(p.amount))}
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Cards — mobile, sem scroll horizontal */}
+                  <div className="mt-5 space-y-3 sm:hidden">
+                    {payouts.map((p) => {
+                      const meta = WITHDRAW_STATUS_META[p.status] ?? WITHDRAW_STATUS_META.analise
+                      const isTransfer = p.status === 'transferido'
+                      const created = new Date(p.created_at)
+                      return (
+                        <div
+                          key={p.id}
+                          className="border-border/60 bg-secondary/20 rounded-xl border p-4"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <span className={cn('size-2 shrink-0 rounded-full', meta.dot)} />
+                              <div>
+                                <p className="text-foreground text-sm font-medium">
+                                  {created.toLocaleDateString('pt-BR')}
+                                </p>
+                                <p className="text-muted-foreground text-xs">
+                                  {created.toLocaleTimeString('pt-BR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </p>
                               </div>
-                            </td>
-                            <td className="py-4 pr-4">
-                              <p className="text-foreground text-sm">{p.pix_key ?? '—'}</p>
-                              <p className="text-muted-foreground text-xs">{p.reference}</p>
-                            </td>
-                            <td className="py-4 pr-4">
-                              <span
-                                className={cn(
-                                  'inline-block rounded-md border px-2 py-0.5 text-[0.65rem] font-semibold',
-                                  meta.className,
-                                )}
-                              >
-                                {meta.label}
-                              </span>
-                            </td>
-                            <td className="py-4 pr-4">
-                              <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
-                                <span className="bg-primary/20 text-primary grid size-4 place-items-center rounded text-[0.6rem] font-bold">
+                            </div>
+                            <span
+                              className={cn(
+                                'inline-block shrink-0 rounded-md border px-2 py-0.5 text-[0.65rem] font-semibold',
+                                meta.className,
+                              )}
+                            >
+                              {meta.label}
+                            </span>
+                          </div>
+                          <div className="border-border/40 mt-3 flex items-end justify-between gap-3 border-t pt-3">
+                            <div className="min-w-0">
+                              <p className="text-foreground truncate text-sm">{p.pix_key ?? '—'}</p>
+                              <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                                <span className="bg-primary/20 text-primary grid size-4 shrink-0 place-items-center rounded text-[0.6rem] font-bold">
                                   P
                                 </span>
-                                Pix
-                              </span>
-                            </td>
-                            <td className="py-4 text-right">
-                              <span
-                                className={cn(
-                                  'inline-block rounded-md px-2.5 py-1 text-sm font-semibold',
-                                  isTransfer ? 'bg-primary/10 text-primary' : 'text-foreground',
-                                )}
-                              >
-                                {formatCurrency(Number.parseFloat(p.amount))}
-                              </span>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                                Pix · {p.reference}
+                              </p>
+                            </div>
+                            <span
+                              className={cn(
+                                'shrink-0 rounded-md px-2.5 py-1 text-sm font-semibold',
+                                isTransfer ? 'bg-primary/10 text-primary' : 'text-foreground',
+                              )}
+                            >
+                              {formatCurrency(Number.parseFloat(p.amount))}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
               )}
 
               <div className="border-border/40 mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">

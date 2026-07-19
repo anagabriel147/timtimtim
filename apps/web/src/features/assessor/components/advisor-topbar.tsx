@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Bell } from 'lucide-react'
 
 import { BrandMark } from '@/components/brand/brand-mark'
+import { MobileNavMenu } from '@/components/layout/mobile-nav-menu'
 import { ProfileMenu } from '@/components/layout/profile-menu'
 import type { SupplierNavItem } from '@/features/fornecedor'
 import { cn } from '@/lib/utils'
@@ -82,11 +83,33 @@ export function AdvisorTopbar({
         </nav>
 
         <div className="flex items-center gap-3">
+          <MobileNavMenu
+            className="lg:hidden"
+            items={[
+              ...ADVISOR_NAV.map((item) => ({
+                label: item,
+                active: item === active,
+                onClick: () => {
+                  const route = NAV_ROUTES[item]
+                  if (route) router.push(route)
+                  else onUnavailable?.(item)
+                },
+              })),
+              ...SUPPLIER_TABS.map((item) => ({
+                label: item,
+                onClick: () => {
+                  const route = ADVISOR_SUPPLIER_ROUTES[item]
+                  if (route) router.push(route)
+                  else onUnavailable?.(item)
+                },
+              })),
+            ]}
+          />
           <button
             type="button"
             aria-label="Notificações"
             onClick={() => onUnavailable?.('Notificações')}
-            className="border-border/60 text-muted-foreground hover:text-foreground relative grid size-10 place-items-center rounded-full border transition-colors"
+            className="border-border/60 text-muted-foreground hover:text-foreground relative hidden size-10 place-items-center rounded-full border transition-colors lg:grid"
           >
             <Bell className="size-4" />
             <span className="bg-primary absolute top-2.5 right-2.5 size-1.5 rounded-full" />

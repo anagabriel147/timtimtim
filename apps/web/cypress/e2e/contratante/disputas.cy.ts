@@ -16,9 +16,13 @@ describe('Contratante — Abrir disputa', () => {
 
     // 2 textareas na página — a primeira é o relato obrigatório (min. 200
     // chars), a segunda é "observações adicionais" (opcional).
-    cy.get('textarea').first().type(
-      'Relato de teste automatizado via Cypress para validar o fluxo real de abertura de disputa. '.repeat(3),
-    )
+    cy.get('textarea')
+      .first()
+      .type(
+        'Relato de teste automatizado via Cypress para validar o fluxo real de abertura de disputa. '.repeat(
+          3,
+        ),
+      )
 
     cy.contains('button', /Declaro que todas as informações/).click()
     cy.contains('button', /Concordo com os Termos do Protocolo/).click()

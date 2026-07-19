@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Bell, HelpCircle } from 'lucide-react'
 
 import { BrandMark } from '@/components/brand/brand-mark'
+import { MobileNavMenu } from '@/components/layout/mobile-nav-menu'
 import { ProfileMenu } from '@/components/layout/profile-menu'
 import { CONTRATANTE_TOPBAR_NAV, CONTRATANTE_USER } from '@/config/navigation'
 import { cn } from '@/lib/utils'
@@ -47,10 +48,18 @@ export function AppTopbar({ activeLabel = 'Início' }: { activeLabel?: string })
       </nav>
 
       <div className="flex items-center gap-4">
+        <MobileNavMenu
+          className="md:hidden"
+          items={CONTRATANTE_TOPBAR_NAV.map((link) => ({
+            label: link.label,
+            onClick: () => router.push(link.href),
+            active: link.label === activeLabel,
+          }))}
+        />
         <button
           type="button"
           aria-label="Notificações"
-          className="text-muted-foreground hover:text-foreground relative grid size-9 place-items-center rounded-lg transition-colors"
+          className="text-muted-foreground hover:text-foreground relative hidden size-9 place-items-center rounded-lg transition-colors md:grid"
         >
           <Bell className="size-5" />
           <span className="bg-primary absolute top-2 right-2 size-2 rounded-full" />
@@ -58,7 +67,7 @@ export function AppTopbar({ activeLabel = 'Início' }: { activeLabel?: string })
         <button
           type="button"
           aria-label="Ajuda"
-          className="text-muted-foreground hover:text-foreground grid size-9 place-items-center rounded-lg transition-colors"
+          className="text-muted-foreground hover:text-foreground hidden size-9 place-items-center rounded-lg transition-colors md:grid"
         >
           <HelpCircle className="size-5" />
         </button>

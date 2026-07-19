@@ -588,7 +588,8 @@ export function AdvisorWallet() {
                 </button>
               </div>
 
-              <div className="mt-5 overflow-x-auto">
+              {/* Tabela — telas largas o bastante pra não precisar de scroll horizontal */}
+              <div className="mt-5 hidden overflow-x-auto sm:block">
                 <table className="w-full min-w-[560px] border-collapse">
                   <thead>
                     <tr className="border-border/50 text-muted-foreground border-b text-left text-[11px] tracking-wider uppercase">
@@ -652,6 +653,60 @@ export function AdvisorWallet() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Cards — mobile, sem scroll horizontal */}
+              <div className="mt-5 space-y-3 sm:hidden">
+                {rows.slice(0, 7).map((row) => {
+                  const meta = WITHDRAWAL_STATUS[row.status]
+                  const isTransfer = row.status === 'transferido'
+                  return (
+                    <div
+                      key={row.id}
+                      className="border-border/60 bg-secondary/20 rounded-xl border p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className={cn('size-2 shrink-0 rounded-full', meta.dot)} />
+                          <div>
+                            <p className="text-foreground text-sm font-medium">{row.date}</p>
+                            <p className="text-muted-foreground text-xs">{row.time}</p>
+                          </div>
+                        </div>
+                        <span
+                          className={cn(
+                            'inline-block shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase',
+                            meta.className,
+                          )}
+                        >
+                          {meta.label}
+                        </span>
+                      </div>
+                      <div className="border-border/40 mt-3 flex items-end justify-between gap-3 border-t pt-3">
+                        <div className="min-w-0">
+                          <p className="text-foreground truncate text-sm font-medium">
+                            {row.reference}
+                          </p>
+                          <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                            <span className="bg-primary/20 text-primary grid size-4 shrink-0 place-items-center rounded-sm text-[8px] font-bold">
+                              P
+                            </span>
+                            {row.method} · {row.code}
+                          </p>
+                        </div>
+                        {isTransfer ? (
+                          <span className="border-primary/40 bg-primary/10 text-primary shrink-0 rounded-md border px-2.5 py-1 text-sm font-semibold">
+                            {row.amount}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground shrink-0 text-sm font-medium">
+                            {row.amount}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
 
               <div className="border-border/50 mt-4 flex items-center justify-between border-t pt-4">
