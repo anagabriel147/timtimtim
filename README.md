@@ -13,6 +13,8 @@ apps/
 
 ## Começar
 
+Frontend:
+
 ```bash
 pnpm install
 cp apps/web/.env.example apps/web/.env.local
@@ -20,6 +22,26 @@ pnpm dev
 ```
 
 Aplicação em http://localhost:3000
+
+Backend (necessário para login e qualquer dado real — ver
+[`apps/api/README.md`](apps/api/README.md)):
+
+```bash
+cd apps/api
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python -m app.seed
+uvicorn app.main:app --reload --port 8000
+```
+
+Login de demo (criado pelo seed): `ana@timtim.com.br` / `12345` (contratante).
+Outros papéis e detalhes em [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
+
+## Documentação
+
+- [`docs/TECHNICAL.md`](docs/TECHNICAL.md) — arquitetura, setup completo, autenticação, referência da API, modelo de dados
+- [`docs/FLUXOS.md`](docs/FLUXOS.md) — o que cada perfil (contratante/fornecedor/assessor/admin) consegue fazer hoje, tela por tela, e o que ainda é protótipo estático
+- [`apps/web/docs/ARCHITECTURE.md`](apps/web/docs/ARCHITECTURE.md) — convenções internas do frontend
 
 ## Scripts
 

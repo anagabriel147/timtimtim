@@ -1,5 +1,13 @@
 # CONTEXT.md - Ecossistema TimTim (Gestão de Eventos)
 
+> **Nota (v1):** este documento é o brief original de produto que guiou o
+> desenho inicial do schema — algumas funcionalidades descritas aqui (RSVP,
+> lista de presentes, mapa de mesas, cronograma minuto a minuto, moderação de
+> catálogo) ainda não foram construídas. Para o que está de fato implementado
+> e funcionando em cada perfil hoje, ver [`docs/FLUXOS.md`](docs/FLUXOS.md); para
+> a referência técnica real da API e do banco, ver
+> [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
+
 ## 1. Visão Geral do Sistema
 O TimTim é um ecossistema completo para planejamento, gestão e automação de eventos. O projeto está estruturado como um monorepo, contendo o frontend em Next.js (`apps/web`) e o backend em Python com FastAPI e SQLAlchemy (`apps/api`).
 
