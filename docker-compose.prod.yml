@@ -1,0 +1,61 @@
+# Simulação local do ambiente de produção (3 containers: postgres + api + web),
+# usando as MESMAS imagens que seriam publicadas em nuvem.
+#
+#   cp .env.prod.example .env.prod
+#   # editar .env.prod com valores reais/fortes antes de subir
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up --build
+#
+# Isso NÃO roda `python -m app.seed` automaticamente — ver docs/DEPLOY.md
+# sobre por que o seed de demo (senha "12345" nos usuários) nunca deve tocar
+# um banco real. Para popular esta simulação local com dado de exemplo:
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod \
+#     run --rm api python -m app.seed
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - timtim_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      SECRET_KEY: ${SECRET_KEY}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      WEB_CONCURRENCY: ${API_WEB_CONCURRENCY:-2}
+    ports:
+      - '8000:8000'
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '3000:3000'
+
+volumes:
+  timtim_pg_data:

@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import models  # noqa: F401 — garante que todas as tabelas registrem no Base.metadata
+from app.core.config import CORS_ORIGINS
 from app.db import Base, engine
 from app.routers import (
     admin,
@@ -31,7 +32,7 @@ app = FastAPI(title="TimTim API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

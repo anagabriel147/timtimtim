@@ -1,0 +1,23 @@
+# Usado como contexto do build de apps/web/Dockerfile (contexto = raiz do repo)
+node_modules
+**/node_modules
+.next
+**/.next
+.git
+.DS_Store
+*.tsbuildinfo
+.eslintcache
+coverage
+
+# Backend não participa do build do frontend
+apps/api/.venv
+apps/api/__pycache__
+apps/api/timtim.db
+
+.env
+.env.*
+!.env.example
+
+.claude
+docs
+*.md

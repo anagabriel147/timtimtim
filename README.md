@@ -41,6 +41,7 @@ Outros papéis e detalhes em [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
 
 - [`docs/TECHNICAL.md`](docs/TECHNICAL.md) — arquitetura, setup completo, autenticação, referência da API, modelo de dados
 - [`docs/FLUXOS.md`](docs/FLUXOS.md) — o que cada perfil (contratante/fornecedor/assessor/admin) consegue fazer hoje, tela por tela, e o que ainda é protótipo estático
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — containerização e deploy de produção (Docker, AWS/GCP, Postgres gerenciado)
 - [`apps/web/docs/ARCHITECTURE.md`](apps/web/docs/ARCHITECTURE.md) — convenções internas do frontend
 
 ## Scripts

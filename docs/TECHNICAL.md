@@ -243,3 +243,4 @@ Entidades principais (SQLAlchemy, estilo `Mapped`/`mapped_column`):
 
 Para o inventário completo de quais telas do frontend já consomem essa API de
 verdade e quais ainda são protótipo estático, ver [`FLUXOS.md`](./FLUXOS.md).
+Para containerização e deploy em nuvem, ver [`DEPLOY.md`](./DEPLOY.md).
