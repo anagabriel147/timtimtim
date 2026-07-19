@@ -1,0 +1,69 @@
+# Arquitetura de instância única (menor custo): 1 EC2 rodando Postgres + API
+# + Web + nginx, todos em containers. Só o nginx expõe porta pro host (80,
+# depois 443) — db/api/web só são alcançáveis pela rede interna do compose.
+#
+#   cp .env.ec2.example .env.ec2   # preencher com valores reais
+#   docker compose -f docker-compose.ec2.yml --env-file .env.ec2 up -d --build
+#
+# Ver docs/DEPLOY.md secao 5 para o passo a passo completo de provisionar a
+# instância, security group e Elastic IP na AWS.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - timtim_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # sem "ports": só acessível dentro da rede do compose (nunca pelo host)
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      SECRET_KEY: ${SECRET_KEY}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      WEB_CONCURRENCY: ${API_WEB_CONCURRENCY:-2}
+    # sem "ports": só o nginx fala com a api, via DNS interno "api:8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    restart: unless-stopped
+    depends_on:
+      - api
+    # sem "ports": só o nginx fala com o web, via DNS interno "web:3000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+      - api
+    ports:
+      - '80:80'
+      # - '443:443'  # habilitar depois de configurar certbot — ver docs/DEPLOY.md secao 5.5
+    volumes:
+      - ./nginx/ec2.conf:/etc/nginx/conf.d/default.conf:ro
+      # - ./nginx/certs:/etc/nginx/certs:ro  # idem, para os certificados
+
+volumes:
+  timtim_pg_data:
