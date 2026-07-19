@@ -1,28 +1,23 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import {
-  BedDouble,
-  CakeSlice,
   Camera,
-  Car,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   CircleCheck,
-  Clapperboard,
   Copy,
+  Disc3,
   Download,
   Flower2,
+  Hourglass,
   MessageCircle,
   Music4,
-  Scissors,
   Share2,
   Ticket,
   TrendingUp,
   Utensils,
   Wallet,
+  Wine,
 } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
@@ -33,43 +28,94 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
-import { cn } from '@/lib/utils'
-
 import {
-  CONVERSION_TREND,
-  REFERRAL_BALANCE,
-  REFERRAL_COUPON,
-  REFERRAL_FILTERS,
-  REFERRAL_STATUS_META,
-  REFERRAL_SUMMARY,
-  REFERRALS,
-  TOP_VENDORS,
+  type CommissionMonth,
+  type Payout,
   type Referral,
-} from '../data/advisor-data'
+  type ReferralSummary,
+  type TopVendor,
+  getCommissionTrend,
+  getReferralSummary,
+  listAssessorPayouts,
+  listReferrals,
+  listTopProviders,
+  requestAssessorPayout,
+} from '@/lib/api'
+import { cn } from '@/lib/utils'
 
 import { AdvisorFooter, AdvisorTopbar } from './advisor-topbar'
 
 const VENDOR_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  bed: BedDouble,
-  music: Music4,
-  flower: Flower2,
-  utensils: Utensils,
-  camera: Camera,
-  video: Clapperboard,
-  scissors: Scissors,
-  car: Car,
-  cake: CakeSlice,
+  'Bar de Coquetéis': Wine,
+  'Buffet / Gastronomia': Utensils,
+  'DJs & Sonorização': Disc3,
+  'Decoração & Cenografia': Flower2,
+  'Fotografia & Filme': Camera,
+  'Banda / Música ao Vivo': Music4,
 }
 
+const STATUS_META: Record<string, { label: string; className: string }> = {
+  confirmada: { label: 'CONFIRMADA', className: 'border-primary/40 bg-primary/10 text-primary' },
+  paga: { label: 'PAGA', className: 'border-primary/40 bg-primary/10 text-primary' },
+  pendente: {
+    label: 'PENDENTE',
+    className: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-500',
+  },
+}
+
+const FILTERS = [
+  { id: 'todas', label: 'Todas' },
+  { id: 'confirmada', label: 'Confirmadas' },
+  { id: 'pendente', label: 'Pendentes' },
+  { id: 'paga', label: 'Pagas' },
+] as const
+
 const chartConfig: ChartConfig = {
-  cupons: { label: 'Cupons', color: 'var(--chart-2)' },
-  convertidos: { label: 'Convertidos', color: 'var(--chart-1)' },
+  total: { label: 'Comissões', color: 'var(--chart-1)' },
+}
+
+function formatCurrency(value: number): string {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function monthLabel(month: string): string {
+  const [, m] = month.split('-')
+  const names = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+  return names[Number(m) - 1] ?? month
 }
 
 export function ReferralsClient() {
+  const [referrals, setReferrals] = useState<Referral[]>([])
+  const [summary, setSummary] = useState<ReferralSummary | null>(null)
+  const [topVendors, setTopVendors] = useState<TopVendor[]>([])
+  const [trend, setTrend] = useState<CommissionMonth[]>([])
+  const [payouts, setPayouts] = useState<Payout[]>([])
+  const [loading, setLoading] = useState(true)
+
   const [toast, setToast] = useState<string | null>(null)
-  const [filter, setFilter] = useState<(typeof REFERRAL_FILTERS)[number]['id']>('todas')
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('todas')
   const [copied, setCopied] = useState(false)
+  const [payoutOpen, setPayoutOpen] = useState(false)
+  const [pixKey, setPixKey] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      listReferrals(),
+      getReferralSummary(),
+      listTopProviders(),
+      getCommissionTrend(),
+      listAssessorPayouts(),
+    ])
+      .then(([r, s, tv, t, p]) => {
+        setReferrals(r)
+        setSummary(s)
+        setTopVendors(tv)
+        setTrend(t)
+        setPayouts(p)
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
   function flash(message: string) {
     setToast(message)
@@ -78,15 +124,50 @@ export function ReferralsClient() {
   }
 
   const filtered = useMemo(() => {
-    if (filter === 'todas') return REFERRALS
-    return REFERRALS.filter((r) => r.status === filter)
-  }, [filter])
+    if (filter === 'todas') return referrals
+    return referrals.filter((r) => r.status === filter)
+  }, [filter, referrals])
+
+  const available = useMemo(() => {
+    if (!summary) return 0
+    const earned = Number.parseFloat(summary.total_commissions)
+    const requested = payouts.reduce((sum, p) => sum + Number.parseFloat(p.amount), 0)
+    return Math.max(0, earned - requested)
+  }, [summary, payouts])
 
   function copyCoupon() {
-    navigator.clipboard?.writeText(REFERRAL_COUPON.code).catch(() => {})
+    if (!summary) return
+    navigator.clipboard?.writeText(summary.referral_code).catch(() => {})
     setCopied(true)
     flash('Código copiado para a área de transferência!')
     window.setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function submitPayout() {
+    if (available <= 0) {
+      flash('Você não tem saldo disponível para saque.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const created = await requestAssessorPayout({ amount: available, pix_key: pixKey || null })
+      setPayouts((prev) => [created, ...prev])
+      setPayoutOpen(false)
+      setPixKey('')
+      flash(`Saque de ${formatCurrency(available)} solicitado!`)
+    } catch {
+      flash('Não foi possível solicitar o saque. Tente novamente.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading || !summary) {
+    return (
+      <div className="text-muted-foreground mx-auto max-w-7xl px-6 py-10 text-sm">
+        Carregando...
+      </div>
+    )
   }
 
   return (
@@ -112,22 +193,10 @@ export function ReferralsClient() {
             <h1 className="font-display text-foreground text-4xl font-semibold text-balance">
               Histórico de Indicações & Cupons
             </h1>
-            <p className="text-muted-foreground mt-2 text-sm">
-              Período de referência:{' '}
-              <span className="text-foreground">{REFERRAL_SUMMARY.period}</span> · Atualizado{' '}
-              {REFERRAL_SUMMARY.updatedAt}
-            </p>
+            <p className="text-muted-foreground mt-2 text-sm">Saldo atualizado em tempo real</p>
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => flash('Seletor de período em breve')}
-              className="border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors"
-            >
-              <span className="text-muted-foreground">Jun 2025</span>
-              <ChevronDown className="size-4" />
-            </button>
             <Button
               onClick={() => flash('Relatório exportado com sucesso!')}
               className="h-11 gap-2 px-5 text-sm font-semibold"
@@ -143,57 +212,37 @@ export function ReferralsClient() {
           <KpiCard
             icon={<Ticket className="text-primary size-5" />}
             tag="TOTAL"
-            value={String(REFERRAL_SUMMARY.couponsApplied)}
-            label="Cupons Aplicados"
-            footer={
-              <div className="mt-3">
-                <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
-                  <div
-                    className="bg-primary h-full rounded-full"
-                    style={{ width: `${REFERRAL_SUMMARY.couponsPercent}%` }}
-                  />
-                </div>
-                <div className="text-muted-foreground mt-1.5 flex items-center justify-between text-xs">
-                  <span>Meta: {REFERRAL_SUMMARY.couponsGoal}</span>
-                  <span className="text-primary">{REFERRAL_SUMMARY.couponsPercent}%</span>
-                </div>
-              </div>
-            }
+            value={String(summary.referred_providers)}
+            label="Fornecedores Indicados"
           />
           <KpiCard
             icon={<CircleCheck className="text-primary size-5" />}
-            tag="MÊS"
-            value={String(REFERRAL_SUMMARY.confirmed)}
+            tag="TOTAL"
+            value={String(summary.confirmed_referrals)}
             label="Conversões Confirmadas"
             footer={
               <p className="text-primary mt-3 flex items-center gap-1 text-xs">
                 <TrendingUp className="size-3.5" />
-                Taxa de conversão: {REFERRAL_SUMMARY.conversionRate}%
+                Taxa de conversão: {summary.conversion_rate}%
               </p>
             }
           />
           <KpiCard
             icon={<span className="text-primary text-sm font-semibold">R$</span>}
             tag="ACUM."
-            value={REFERRAL_SUMMARY.contractsVolume}
+            value={formatCurrency(Number.parseFloat(summary.contracts_volume))}
             label="Volume de Contratos"
-            footer={
-              <p className="text-primary mt-3 flex items-center gap-1 text-xs">
-                <TrendingUp className="size-3.5" />
-                {REFERRAL_SUMMARY.contractsDelta}
-              </p>
-            }
           />
           <KpiCard
             highlight
             icon={<Wallet className="text-primary size-5" />}
             tag="Ganhos"
-            value={REFERRAL_SUMMARY.totalCommissions}
+            value={formatCurrency(Number.parseFloat(summary.total_commissions))}
             label="Total em Comissões"
             footer={
               <p className="text-primary mt-3 flex items-center gap-1 text-xs">
                 <CircleCheck className="size-3.5" />
-                Média {REFERRAL_SUMMARY.averagePerReferral}
+                Média {formatCurrency(Number.parseFloat(summary.average_per_referral))}
               </p>
             }
           />
@@ -211,11 +260,11 @@ export function ReferralsClient() {
                     Tabela de Indicações
                   </h2>
                   <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 text-xs font-medium">
-                    {REFERRAL_SUMMARY.confirmed} confirmadas
+                    {summary.confirmed_referrals} confirmadas
                   </span>
                 </div>
                 <div className="border-border/60 bg-muted/30 flex items-center gap-1 rounded-full border p-1">
-                  {REFERRAL_FILTERS.map((f) => (
+                  {FILTERS.map((f) => (
                     <button
                       key={f.id}
                       type="button"
@@ -235,7 +284,7 @@ export function ReferralsClient() {
 
               {/* Column headers */}
               <div className="text-muted-foreground hidden grid-cols-[1.4fr_1.4fr_0.9fr_1fr_1fr] gap-4 px-5 py-3 text-[0.65rem] font-semibold tracking-widest md:grid">
-                <span>CASAMENTO</span>
+                <span>EVENTO</span>
                 <span>FORNECEDOR</span>
                 <span>STATUS</span>
                 <span className="text-right">VALOR DO CONTRATO</span>
@@ -252,62 +301,20 @@ export function ReferralsClient() {
                   </p>
                 )}
               </div>
-
-              <div className="border-border/60 flex flex-wrap items-center justify-between gap-3 border-t p-5">
-                <span className="text-muted-foreground text-xs">
-                  Mostrando {filtered.length} de {REFERRAL_SUMMARY.couponsApplied} indicações
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => flash('Você já está na primeira página')}
-                    className="border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs transition-colors"
-                  >
-                    <ChevronLeft className="size-3.5" />
-                    Anterior
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => flash('Carregando próxima página...')}
-                    className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
-                  >
-                    Próxima
-                    <ChevronRight className="size-3.5" />
-                  </button>
-                </div>
-              </div>
             </section>
 
-            {/* Conversion trend chart */}
+            {/* Commission trend chart */}
             <section className="border-border/60 bg-card rounded-xl border p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <h2 className="font-display text-foreground text-lg font-semibold">
-                    Tendência de Conversões
+                    Comissões por Mês
                   </h2>
-                  <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 text-xs font-medium">
-                    Jan–Jun 2025
-                  </span>
                 </div>
-                <div className="text-muted-foreground flex items-center gap-4 text-xs">
-                  <span className="flex items-center gap-1.5">
-                    <span
-                      className="size-2 rounded-full"
-                      style={{ background: 'var(--chart-2)' }}
-                    />
-                    Cupons
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span
-                      className="size-2 rounded-full"
-                      style={{ background: 'var(--chart-1)' }}
-                    />
-                    Convertidos
-                  </span>
-                </div>
+                <span className="text-muted-foreground text-xs">Últimos 6 meses</span>
               </div>
               <ChartContainer config={chartConfig} className="h-[240px] w-full">
-                <BarChart data={CONVERSION_TREND} barGap={4}>
+                <BarChart data={trend.map((t) => ({ ...t, total: Number.parseFloat(t.total) }))}>
                   <CartesianGrid
                     vertical={false}
                     strokeDasharray="3 3"
@@ -315,6 +322,7 @@ export function ReferralsClient() {
                   />
                   <XAxis
                     dataKey="month"
+                    tickFormatter={monthLabel}
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
@@ -322,12 +330,7 @@ export function ReferralsClient() {
                   />
                   <YAxis tickLine={false} axisLine={false} width={24} className="text-xs" />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="cupons" fill="var(--color-cupons)" radius={[3, 3, 0, 0]} />
-                  <Bar
-                    dataKey="convertidos"
-                    fill="var(--color-convertidos)"
-                    radius={[3, 3, 0, 0]}
-                  />
+                  <Bar dataKey="total" fill="var(--color-total)" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ChartContainer>
             </section>
@@ -354,7 +357,7 @@ export function ReferralsClient() {
                   CÓDIGO DE ASSESSORA
                 </p>
                 <p className="text-primary mt-2 font-mono text-2xl font-bold tracking-[0.2em]">
-                  {REFERRAL_COUPON.code}
+                  {summary.referral_code}
                 </p>
                 <button
                   type="button"
@@ -388,19 +391,19 @@ export function ReferralsClient() {
               <div className="border-border/60 mt-5 grid grid-cols-3 border-t pt-4 text-center">
                 <div>
                   <p className="font-display text-foreground text-xl font-semibold">
-                    {REFERRAL_COUPON.uses}
+                    {summary.referred_providers}
                   </p>
                   <p className="text-muted-foreground text-xs">Usos</p>
                 </div>
                 <div className="border-border/60 border-x">
                   <p className="font-display text-foreground text-xl font-semibold">
-                    {REFERRAL_COUPON.converted}
+                    {summary.confirmed_referrals}
                   </p>
                   <p className="text-muted-foreground text-xs">Convertidos</p>
                 </div>
                 <div>
                   <p className="font-display text-primary text-xl font-semibold">
-                    {REFERRAL_COUPON.conversion}
+                    {summary.conversion_rate}%
                   </p>
                   <p className="text-muted-foreground text-xs">Conversão</p>
                 </div>
@@ -413,53 +416,88 @@ export function ReferralsClient() {
                 <h2 className="font-display text-foreground text-lg font-semibold">
                   Top Fornecedores
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => flash('Lista completa de fornecedores em breve')}
-                  className="text-muted-foreground hover:text-primary text-xs transition-colors"
-                >
-                  Ver todos
-                </button>
               </div>
-              <div className="flex flex-col gap-4">
-                {TOP_VENDORS.map((v) => {
-                  const Icon = VENDOR_ICONS[v.icon] ?? Utensils
-                  return (
-                    <div key={v.id} className="flex items-center gap-3">
-                      <div className="border-border/60 bg-muted/30 grid size-9 shrink-0 place-items-center rounded-lg border">
-                        <Icon className="text-primary size-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-foreground truncate text-sm">{v.name}</span>
-                          <span className="text-primary text-sm font-semibold">{v.amount}</span>
+              {topVendors.length === 0 ? (
+                <p className="text-muted-foreground text-center text-sm">
+                  Nenhuma comissão confirmada ainda.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {topVendors.map((v) => {
+                    const Icon = Utensils
+                    return (
+                      <div key={v.provider_id} className="flex items-center gap-3">
+                        <div className="border-border/60 bg-muted/30 grid size-9 shrink-0 place-items-center rounded-lg border">
+                          <Icon className="text-primary size-4" />
                         </div>
-                        <div className="bg-muted mt-1.5 h-1 w-full overflow-hidden rounded-full">
-                          <div
-                            className="bg-primary/70 h-full rounded-full"
-                            style={{ width: `${v.percent}%` }}
-                          />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-foreground truncate text-sm">
+                              {v.provider_name}
+                            </span>
+                            <span className="text-primary text-sm font-semibold">
+                              {formatCurrency(Number.parseFloat(v.total_commission))}
+                            </span>
+                          </div>
+                          <div className="bg-muted mt-1.5 h-1 w-full overflow-hidden rounded-full">
+                            <div
+                              className="bg-primary/70 h-full rounded-full"
+                              style={{ width: `${v.percent}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div className="border-primary/30 bg-primary/5 mt-5 flex items-center justify-between rounded-xl border p-4">
-                <div>
-                  <p className="text-muted-foreground text-xs">Saldo Disponível</p>
-                  <p className="font-display text-foreground text-xl font-semibold">
-                    {REFERRAL_BALANCE.toReceive}
-                  </p>
+                    )
+                  })}
                 </div>
-                <Button
-                  onClick={() => flash('Solicitação de saque enviada!')}
-                  className="h-9 gap-1.5 px-4 text-sm font-semibold"
-                >
-                  <Wallet className="size-4" />
-                  Sacar
-                </Button>
+              )}
+
+              <div className="border-primary/30 bg-primary/5 mt-5 rounded-xl border p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Saldo Disponível</p>
+                    <p className="font-display text-foreground text-xl font-semibold">
+                      {formatCurrency(available)}
+                    </p>
+                  </div>
+                  {!payoutOpen && (
+                    <Button
+                      onClick={() => setPayoutOpen(true)}
+                      disabled={available <= 0}
+                      className="h-9 gap-1.5 px-4 text-xs font-semibold"
+                    >
+                      <Wallet className="size-4" />
+                      Sacar
+                    </Button>
+                  )}
+                </div>
+                {payoutOpen && (
+                  <div className="mt-3 space-y-2">
+                    <input
+                      type="text"
+                      value={pixKey}
+                      onChange={(e) => setPixKey(e.target.value)}
+                      placeholder="Chave Pix (e-mail, CPF/CNPJ...)"
+                      className="border-border bg-input text-foreground placeholder:text-muted-foreground w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={submitPayout}
+                        disabled={submitting}
+                        className="h-9 flex-1 text-xs font-semibold"
+                      >
+                        {submitting ? 'Enviando...' : `Confirmar ${formatCurrency(available)}`}
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => setPayoutOpen(false)}
+                        className="border-border/60 text-muted-foreground hover:text-foreground rounded-lg border px-3 text-xs transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           </div>
@@ -523,33 +561,26 @@ function KpiCard({
 }
 
 function ReferralRow({ referral }: { referral: Referral }) {
-  const Icon = VENDOR_ICONS[referral.vendorIcon] ?? Utensils
-  const meta = REFERRAL_STATUS_META[referral.status]
-  const dim = referral.status !== 'confirmada'
+  const Icon = VENDOR_ICONS[referral.category_name ?? ''] ?? Utensils
+  const meta = STATUS_META[referral.status] ?? {
+    label: referral.status.toUpperCase(),
+    className: 'border-border/60 text-muted-foreground',
+  }
+  const dim = referral.status !== 'confirmada' && referral.status !== 'paga'
 
   return (
     <div className="grid grid-cols-1 gap-3 px-5 py-4 md:grid-cols-[1.4fr_1.4fr_0.9fr_1fr_1fr] md:items-center md:gap-4">
-      {/* Wedding */}
-      <div className="flex items-center gap-3">
-        <div
+      {/* Event */}
+      <div className="min-w-0">
+        <p
           className={cn(
-            'grid size-9 shrink-0 place-items-center rounded-full border text-xs font-semibold',
-            dim ? 'border-border/60 text-muted-foreground' : 'border-primary/40 text-primary',
+            'truncate text-sm font-medium',
+            dim ? 'text-muted-foreground' : 'text-foreground',
           )}
         >
-          {referral.initials}
-        </div>
-        <div className="min-w-0">
-          <p
-            className={cn(
-              'truncate text-sm font-medium',
-              dim ? 'text-muted-foreground' : 'text-foreground',
-            )}
-          >
-            {referral.couple}
-          </p>
-          <p className="text-muted-foreground text-xs">{referral.date}</p>
-        </div>
+          {referral.event_name}
+        </p>
+        <p className="text-muted-foreground text-xs">{referral.contratante_name}</p>
       </div>
 
       {/* Vendor */}
@@ -559,9 +590,9 @@ function ReferralRow({ referral }: { referral: Referral }) {
         </div>
         <div className="min-w-0">
           <p className={cn('truncate text-sm', dim ? 'text-muted-foreground' : 'text-foreground')}>
-            {referral.vendor}
+            {referral.provider_name}
           </p>
-          <p className="text-muted-foreground text-xs">{referral.vendorCategory}</p>
+          <p className="text-muted-foreground text-xs">{referral.category_name ?? '—'}</p>
         </div>
       </div>
 
@@ -569,10 +600,11 @@ function ReferralRow({ referral }: { referral: Referral }) {
       <div>
         <span
           className={cn(
-            'inline-flex rounded-md border px-2 py-1 text-[0.65rem] font-semibold tracking-wider',
+            'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[0.65rem] font-semibold tracking-wider',
             meta.className,
           )}
         >
+          {referral.status === 'pendente' && <Hourglass className="size-3" />}
           {meta.label}
         </span>
       </div>
@@ -584,7 +616,7 @@ function ReferralRow({ referral }: { referral: Referral }) {
           dim ? 'text-muted-foreground' : 'text-foreground',
         )}
       >
-        {referral.contractValue}
+        {formatCurrency(Number.parseFloat(referral.contract_value))}
       </p>
 
       {/* Commission */}
@@ -597,7 +629,7 @@ function ReferralRow({ referral }: { referral: Referral }) {
               : 'border-primary/40 bg-primary/10 text-primary',
           )}
         >
-          {referral.commission}
+          {formatCurrency(Number.parseFloat(referral.commission_amount))}
         </span>
       </div>
     </div>

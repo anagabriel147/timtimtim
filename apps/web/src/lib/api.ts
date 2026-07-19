@@ -148,6 +148,43 @@ export type Contract = {
   created_at: string
 }
 
+export type Referral = {
+  id: number
+  event_name: string
+  contratante_name: string
+  provider_id: number
+  provider_name: string
+  category_name: string | null
+  contract_value: string
+  commission_amount: string
+  commission_percent: string
+  status: string
+  created_at: string
+}
+
+export type ReferralSummary = {
+  referral_code: string
+  referred_providers: number
+  confirmed_referrals: number
+  conversion_rate: number
+  contracts_volume: string
+  total_commissions: string
+  commissions_this_month: string
+  average_per_referral: string
+}
+
+export type TopVendor = {
+  provider_id: number
+  provider_name: string
+  total_commission: string
+  percent: number
+}
+
+export type CommissionMonth = {
+  month: string
+  total: string
+}
+
 export type DisputeCreateInput = {
   contract_id: number
   category: string
@@ -299,4 +336,28 @@ export function listPayouts(): Promise<Payout[]> {
 
 export function requestPayout(input: PayoutCreateInput): Promise<Payout> {
   return apiFetch('/payouts', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function listReferrals(): Promise<Referral[]> {
+  return apiFetch('/referrals')
+}
+
+export function getReferralSummary(): Promise<ReferralSummary> {
+  return apiFetch('/referrals/summary')
+}
+
+export function listTopProviders(): Promise<TopVendor[]> {
+  return apiFetch('/referrals/top-providers')
+}
+
+export function getCommissionTrend(): Promise<CommissionMonth[]> {
+  return apiFetch('/referrals/commission-trend')
+}
+
+export function listAssessorPayouts(): Promise<Payout[]> {
+  return apiFetch('/assessor-payouts')
+}
+
+export function requestAssessorPayout(input: PayoutCreateInput): Promise<Payout> {
+  return apiFetch('/assessor-payouts', { method: 'POST', body: JSON.stringify(input) })
 }

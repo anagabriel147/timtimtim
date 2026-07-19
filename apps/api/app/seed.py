@@ -9,12 +9,23 @@ Uso: python -m app.seed
 """
 
 from datetime import date, timedelta
+from decimal import Decimal
 
 from app.core.security import hash_password
 from app.db import Base, SessionLocal, engine
 from app.models.catalog import ServiceCategory
-from app.models.enums import EventTypeEnum, ProposalStatusEnum, QuoteRequestStatusEnum, RoleEnum
+from app.models.contract import Contract
+from app.models.enums import (
+    CommissionStatusEnum,
+    EscrowStatusEnum,
+    EventTypeEnum,
+    ProposalStatusEnum,
+    QuoteRequestStatusEnum,
+    RoleEnum,
+    ServiceStatusEnum,
+)
 from app.models.event import Event
+from app.models.payout import Commission
 from app.models.proposal import Proposal, ProposalItem, QuoteRequest
 from app.models.user import AssessorProfile, ProviderProfile, User
 
@@ -222,6 +233,78 @@ def seed() -> None:
                 )
             )
         db.commit()
+
+        # vínculo de indicação: Guto foi indicado pela assessora Isabela
+        assessor = users_by_email["assessor@timtim.com.br"]
+        provider_profile = db.get(ProviderProfile, provider.id)
+        if provider_profile is not None and provider_profile.referred_by_assessor_id is None:
+            provider_profile.referred_by_assessor_id = assessor.id
+            db.commit()
+            print("[criado] vínculo de indicação: Guto indicado por Isabela")
+
+        # contrato já fechado num evento antigo, pra assessora ter uma
+        # comissão de verdade pra mostrar no painel de indicações
+        noivado_event = (
+            db.query(Event)
+            .filter(Event.contratante_id == contratante.id, Event.name == "Festa de Noivado")
+            .first()
+        )
+        existing_commission = (
+            db.query(Commission).filter(Commission.assessor_id == assessor.id).first()
+        )
+        if noivado_event is not None and existing_commission is None:
+            referral_quote = QuoteRequest(
+                event_id=noivado_event.id,
+                contratante_id=contratante.id,
+                provider_id=provider.id,
+                category_id=categories_by_slug["decoracao"].id,
+                source="indicacao",
+                status=QuoteRequestStatusEnum.RESPONDIDO,
+            )
+            db.add(referral_quote)
+            db.flush()
+
+            referral_proposal = Proposal(
+                quote_request_id=referral_quote.id,
+                provider_id=provider.id,
+                title="Decoração da Festa de Noivado",
+                category_id=categories_by_slug["decoracao"].id,
+                deadline=noivado_event.event_date,
+                amount=8000,
+                payment_term="à vista",
+                validity_days=7,
+                scope_text="Decoração completa da festa de noivado.",
+                status=ProposalStatusEnum.CONTRATO,
+            )
+            db.add(referral_proposal)
+            db.flush()
+
+            referral_contract = Contract(
+                proposal_id=referral_proposal.id,
+                contratante_id=contratante.id,
+                provider_id=provider.id,
+                event_id=noivado_event.id,
+                contract_code="",  # preenchido abaixo, depois que o id real existe
+                value=referral_proposal.amount,
+                service_status=ServiceStatusEnum.CONCLUIDO,
+                payment_status=EscrowStatusEnum.QUITADO,
+            )
+            db.add(referral_contract)
+            db.flush()
+            referral_contract.contract_code = f"TT-{date.today().year}-{referral_contract.id:04d}"
+
+            db.add(
+                Commission(
+                    assessor_id=assessor.id,
+                    contract_id=referral_contract.id,
+                    provider_id=provider.id,
+                    amount=referral_proposal.amount * Decimal("0.05"),
+                    percent=Decimal("5.00"),
+                    status=CommissionStatusEnum.CONFIRMADA,
+                )
+            )
+            db.commit()
+            print("[criado] contrato + comissão de indicação para Isabela")
     finally:
         db.close()
 

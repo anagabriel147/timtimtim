@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import models  # noqa: F401 — garante que todas as tabelas registrem no Base.metadata
 from app.db import Base, engine
 from app.routers import (
+    assessor_payouts,
     auth,
     catalog,
     contracts,
@@ -14,6 +15,7 @@ from app.routers import (
     opportunities,
     payouts,
     proposals,
+    referrals,
     reviews,
 )
 
@@ -43,6 +45,8 @@ app.include_router(contracts.router)
 app.include_router(disputes.router)
 app.include_router(reviews.router)
 app.include_router(payouts.router)
+app.include_router(referrals.router)
+app.include_router(assessor_payouts.router)
 
 
 @app.get("/")
