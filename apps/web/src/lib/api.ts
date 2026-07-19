@@ -185,6 +185,47 @@ export type CommissionMonth = {
   total: string
 }
 
+export type AdminKpis = {
+  active_subscribers: number
+  mrr: string
+  referral_commissions_paid: string
+  gross_volume: string
+}
+
+export type AdminDispute = {
+  id: number
+  contract_code: string
+  severity: string
+  status: string
+  opened_by_name: string
+  respondent_name: string
+  dispute_value: string | null
+  description: string
+  deadline_at: string | null
+  events_count: number
+  created_at: string
+}
+
+export type EcosystemActivityMonth = {
+  month: string
+  events_count: number
+}
+
+export type PlatformHealth = {
+  conversion_rate: number
+  avg_rating: number | null
+  contracts_completed_rate: number
+  disputes_resolved_rate: number
+}
+
+export type AdminTopVendor = {
+  provider_id: number
+  provider_name: string
+  category_name: string | null
+  total_revenue: string
+  avg_rating: number | null
+}
+
 export type DisputeCreateInput = {
   contract_id: number
   category: string
@@ -360,4 +401,24 @@ export function listAssessorPayouts(): Promise<Payout[]> {
 
 export function requestAssessorPayout(input: PayoutCreateInput): Promise<Payout> {
   return apiFetch('/assessor-payouts', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function getAdminKpis(): Promise<AdminKpis> {
+  return apiFetch('/admin/kpis')
+}
+
+export function listOpenDisputes(): Promise<AdminDispute[]> {
+  return apiFetch('/admin/disputes')
+}
+
+export function getEcosystemActivity(): Promise<EcosystemActivityMonth[]> {
+  return apiFetch('/admin/ecosystem-activity')
+}
+
+export function getPlatformHealth(): Promise<PlatformHealth> {
+  return apiFetch('/admin/platform-health')
+}
+
+export function getAdminTopVendors(): Promise<AdminTopVendor[]> {
+  return apiFetch('/admin/top-vendors')
 }

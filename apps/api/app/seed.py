@@ -8,25 +8,35 @@ dashboards do contratante e do fornecedor mostrarem dado real.
 Uso: python -m app.seed
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from app.core.security import hash_password
 from app.db import Base, SessionLocal, engine
+from app.models.billing import Plan, Subscription
 from app.models.catalog import ServiceCategory
 from app.models.contract import Contract
+from app.models.dispute import Dispute
 from app.models.enums import (
+    BillingCycleEnum,
     CommissionStatusEnum,
+    DisputeCategoryEnum,
+    DisputeResolutionEnum,
+    DisputeSeverityEnum,
+    DisputeStatusEnum,
     EscrowStatusEnum,
     EventTypeEnum,
+    PlanRoleEnum,
     ProposalStatusEnum,
     QuoteRequestStatusEnum,
     RoleEnum,
     ServiceStatusEnum,
+    SubscriptionStatusEnum,
 )
 from app.models.event import Event
 from app.models.payout import Commission
 from app.models.proposal import Proposal, ProposalItem, QuoteRequest
+from app.models.review import Review
 from app.models.user import AssessorProfile, ProviderProfile, User
 
 SEED_CATEGORIES = [
@@ -305,6 +315,119 @@ def seed() -> None:
             )
             db.commit()
             print("[criado] contrato + comissão de indicação para Isabela")
+
+        # assinatura ativa do fornecedor, pro painel admin ter MRR de verdade
+        plan = db.query(Plan).filter(Plan.name == "Fornecedor Pro").first()
+        if plan is None:
+            plan = Plan(
+                role=PlanRoleEnum.FORNECEDOR,
+                name="Fornecedor Pro",
+                billing_cycle=BillingCycleEnum.MENSAL,
+                price_cents=9900,
+            )
+            db.add(plan)
+            db.flush()
+            print("[criado] plano Fornecedor Pro")
+
+        if db.query(Subscription).filter(Subscription.user_id == provider.id).first() is None:
+            db.add(
+                Subscription(
+                    user_id=provider.id,
+                    plan_id=plan.id,
+                    status=SubscriptionStatusEnum.ATIVA,
+                )
+            )
+            db.commit()
+            print("[criado] assinatura ativa de Guto")
+
+        # avaliação no contrato de indicação (já concluído), pro NPS do admin ter dado real
+        referral_commission = (
+            db.query(Commission).filter(Commission.assessor_id == assessor.id).first()
+        )
+        if referral_commission is not None and db.query(Review).filter(
+            Review.contract_id == referral_commission.contract_id
+        ).first() is None:
+            db.add(
+                Review(
+                    contract_id=referral_commission.contract_id,
+                    reviewer_id=contratante.id,
+                    provider_id=provider.id,
+                    rating_overall=5,
+                    rating_atendimento=5,
+                    rating_pontualidade=4,
+                    rating_qualidade=5,
+                    highlights=["Pontualidade", "Criatividade"],
+                    text="Decoração impecável, superou as expectativas.",
+                    recommend=True,
+                    show_name=True,
+                )
+            )
+            db.commit()
+            print("[criado] avaliação do contrato da Festa de Noivado")
+
+        # segundo contrato (em andamento) + disputa aberta, pro painel admin
+        # ter uma disputa de verdade pra mostrar
+        aniversario_event = (
+            db.query(Event)
+            .filter(Event.contratante_id == contratante.id, Event.name == "Aniversário de 30 Anos")
+            .first()
+        )
+        if aniversario_event is not None and not db.query(Dispute).first():
+            dispute_quote = QuoteRequest(
+                event_id=aniversario_event.id,
+                contratante_id=contratante.id,
+                provider_id=provider.id,
+                category_id=categories_by_slug["decoracao"].id,
+                source="marketplace",
+                status=QuoteRequestStatusEnum.RESPONDIDO,
+            )
+            db.add(dispute_quote)
+            db.flush()
+
+            dispute_proposal = Proposal(
+                quote_request_id=dispute_quote.id,
+                provider_id=provider.id,
+                title="Decoração do Aniversário de 30 Anos",
+                category_id=categories_by_slug["decoracao"].id,
+                amount=3800,
+                payment_term="à vista",
+                validity_days=7,
+                scope_text="Decoração temática para festa de 30 anos.",
+                status=ProposalStatusEnum.CONTRATO,
+            )
+            db.add(dispute_proposal)
+            db.flush()
+
+            dispute_contract = Contract(
+                proposal_id=dispute_proposal.id,
+                contratante_id=contratante.id,
+                provider_id=provider.id,
+                event_id=aniversario_event.id,
+                contract_code="",
+                value=dispute_proposal.amount,
+                service_status=ServiceStatusEnum.ANDAMENTO,
+                payment_status=EscrowStatusEnum.AGUARDANDO,
+            )
+            db.add(dispute_contract)
+            db.flush()
+            dispute_contract.contract_code = f"TT-{date.today().year}-{dispute_contract.id:04d}"
+
+            db.add(
+                Dispute(
+                    contract_id=dispute_contract.id,
+                    opened_by_user_id=contratante.id,
+                    respondent_user_id=provider.id,
+                    category=DisputeCategoryEnum.QUALIDADE_ABAIXO,
+                    severity=DisputeSeverityEnum.MEDIO,
+                    statement_text="Arranjos entregues em tom diferente do combinado no briefing.",
+                    requested_resolution=DisputeResolutionEnum.PARCIAL,
+                    requested_value=Decimal("800.00"),
+                    status=DisputeStatusEnum.ABERTA,
+                    deadline_at=datetime.utcnow() + timedelta(days=2),
+                )
+            )
+            db.commit()
+            print("[criado] contrato em andamento + disputa aberta")
     finally:
         db.close()
 

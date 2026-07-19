@@ -1,15 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import {
   Activity,
   ArrowUpRight,
-  Bed,
   Calendar,
   Camera,
   CircleAlert,
-  Clapperboard,
   Database,
   Download,
   Filter,
@@ -24,66 +22,199 @@ import {
   TriangleAlert,
   UsersRound,
   Utensils,
+  Wine,
   Zap,
 } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts'
 
 import { ChartContainer, type ChartConfig } from '@/components/ui/chart'
-import { cn } from '@/lib/utils'
-
 import {
-  ADMIN_DISPUTES,
-  ADMIN_HEADER,
-  ADMIN_KPIS,
-  ADMIN_TOP_VENDORS,
-  DISPUTE_SEVERITY_META,
-  ECOSYSTEM_ACTIVITY,
-  PLATFORM_HEALTH,
-} from '../data/admin-data'
+  type AdminDispute,
+  type AdminKpis,
+  type AdminTopVendor,
+  type EcosystemActivityMonth,
+  type PlatformHealth,
+  getAdminKpis,
+  getAdminTopVendors,
+  getEcosystemActivity,
+  getPlatformHealth,
+  listOpenDisputes,
+} from '@/lib/api'
+import { cn } from '@/lib/utils'
 
 import { AdminTopbar, AdminFooter } from './admin-topbar'
 
-const KPI_ICONS: Record<string, typeof UsersRound> = {
-  users: UsersRound,
-  chart: LineChartIcon,
-  cash: Database,
-  database: Database,
-}
-
-const SEVERITY_ICONS: Record<string, typeof TriangleAlert> = {
-  'triangle-alert': TriangleAlert,
-  'circle-alert': CircleAlert,
-  hourglass: Hourglass,
-}
-
-const HEALTH_ICONS: Record<string, typeof Activity> = {
-  activity: Activity,
-  gauge: Gauge,
-  star: Star,
-  zap: Zap,
+const SEVERITY_META: Record<
+  string,
+  { label: string; className: string; dotClass: string; icon: typeof TriangleAlert }
+> = {
+  critico: {
+    label: 'CRÍTICO',
+    className: 'border-destructive/40 bg-destructive/10 text-destructive',
+    dotClass: 'text-destructive',
+    icon: TriangleAlert,
+  },
+  medio: {
+    label: 'ATENÇÃO',
+    className: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-500',
+    dotClass: 'text-yellow-500',
+    icon: CircleAlert,
+  },
+  baixo: {
+    label: 'BAIXA',
+    className: 'border-primary/40 bg-primary/10 text-primary',
+    dotClass: 'text-primary',
+    icon: Hourglass,
+  },
 }
 
 const VENDOR_ICONS: Record<string, typeof Camera> = {
-  camera: Camera,
-  utensils: Utensils,
-  music: Music4,
-  flower: Flower2,
-  video: Clapperboard,
-  bed: Bed,
+  'Bar de Coquetéis': Wine,
+  'Buffet / Gastronomia': Utensils,
+  'DJs & Sonorização': Music4,
+  'Decoração & Cenografia': Flower2,
+  'Fotografia & Filme': Camera,
+  'Banda / Música ao Vivo': Music4,
 }
 
 const chartConfig: ChartConfig = {
-  value: { label: 'Eventos', color: 'var(--chart-1)' },
+  events_count: { label: 'Eventos', color: 'var(--chart-1)' },
+}
+
+function formatCurrency(value: number): string {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function monthLabel(month: string): string {
+  const [, m] = month.split('-')
+  const names = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+  return names[Number(m) - 1] ?? month
+}
+
+function formatOpenedAgo(createdAt: string): string {
+  const ms = Date.now() - new Date(createdAt).getTime()
+  const hours = Math.floor(ms / (1000 * 60 * 60))
+  if (hours < 1) return 'Aberto agora'
+  if (hours < 24) return `Aberto há ${hours}h`
+  const days = Math.floor(hours / 24)
+  return `Aberto há ${days} dia${days > 1 ? 's' : ''}`
+}
+
+function formatSla(deadlineAt: string | null): { label: string; urgent: boolean } {
+  if (!deadlineAt) return { label: 'Sem prazo definido', urgent: false }
+  const ms = new Date(deadlineAt).getTime() - Date.now()
+  if (ms <= 0) return { label: 'SLA vencido', urgent: true }
+  const hours = Math.round(ms / (1000 * 60 * 60))
+  return { label: `SLA em ${hours}h`, urgent: hours <= 24 }
 }
 
 export function AdminHome() {
+  const [kpis, setKpis] = useState<AdminKpis | null>(null)
+  const [disputes, setDisputes] = useState<AdminDispute[]>([])
+  const [activity, setActivity] = useState<EcosystemActivityMonth[]>([])
+  const [health, setHealth] = useState<PlatformHealth | null>(null)
+  const [topVendors, setTopVendors] = useState<AdminTopVendor[]>([])
+  const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    Promise.all([
+      getAdminKpis(),
+      listOpenDisputes(),
+      getEcosystemActivity(),
+      getPlatformHealth(),
+      getAdminTopVendors(),
+    ])
+      .then(([k, d, a, h, tv]) => {
+        setKpis(k)
+        setDisputes(d)
+        setActivity(a)
+        setHealth(h)
+        setTopVendors(tv)
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
   function flash(message: string) {
     setToast(message)
     window.clearTimeout((flash as unknown as { t?: number }).t)
     ;(flash as unknown as { t?: number }).t = window.setTimeout(() => setToast(null), 2600)
   }
+
+  if (loading || !kpis || !health) {
+    return (
+      <div className="text-muted-foreground mx-auto max-w-7xl px-6 py-10 text-sm">
+        Carregando...
+      </div>
+    )
+  }
+
+  const kpiCards = [
+    {
+      id: 'subscribers',
+      icon: UsersRound,
+      tag: 'FORNECEDORES',
+      value: String(kpis.active_subscribers),
+      label: 'Assinantes Ativos',
+    },
+    {
+      id: 'mrr',
+      icon: LineChartIcon,
+      tag: 'MRR',
+      value: formatCurrency(Number.parseFloat(kpis.mrr)),
+      label: 'Faturamento de Assinaturas',
+    },
+    {
+      id: 'commissions',
+      icon: Database,
+      tag: 'ASSESSORAS',
+      value: formatCurrency(Number.parseFloat(kpis.referral_commissions_paid)),
+      label: 'Comissões de Indicação Pagas',
+      highlight: true,
+    },
+    {
+      id: 'gross',
+      icon: Database,
+      tag: 'BRUTO',
+      value: formatCurrency(Number.parseFloat(kpis.gross_volume)),
+      label: 'Volume Total em Contratos',
+    },
+  ]
+
+  const healthMetrics = [
+    {
+      id: 'conversion',
+      icon: Gauge,
+      label: 'Taxa de Conversão Global',
+      value: `${health.conversion_rate}%`,
+      percent: health.conversion_rate,
+      tone: 'primary' as const,
+    },
+    {
+      id: 'rating',
+      icon: Star,
+      label: 'Avaliação Média de Fornecedores',
+      value: health.avg_rating ? `${health.avg_rating} / 5` : '—',
+      percent: health.avg_rating ? (health.avg_rating / 5) * 100 : 0,
+      tone: 'primary' as const,
+    },
+    {
+      id: 'completed',
+      icon: Zap,
+      label: 'Contratos Concluídos',
+      value: `${health.contracts_completed_rate}%`,
+      percent: health.contracts_completed_rate,
+      tone: 'primary' as const,
+    },
+    {
+      id: 'disputes',
+      icon: Activity,
+      label: 'Disputas Resolvidas',
+      value: `${health.disputes_resolved_rate}%`,
+      percent: health.disputes_resolved_rate,
+      tone: 'warning' as const,
+    },
+  ]
 
   return (
     <div className="bg-background flex min-h-dvh flex-col">
@@ -99,7 +230,7 @@ export function AdminHome() {
             </span>
             <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
               <Shield className="size-3.5" />
-              Nível de Acesso: <span className="text-foreground">{ADMIN_HEADER.accessLevel}</span>
+              Nível de Acesso: <span className="text-foreground">Irrestrito</span>
             </span>
           </div>
 
@@ -109,8 +240,7 @@ export function AdminHome() {
                 Painel Estratégico & <span className="text-primary block">Métricas Globais</span>
               </h1>
               <p className="text-muted-foreground mt-3 text-sm">
-                {ADMIN_HEADER.subtitle} ·{' '}
-                <span className="text-foreground">{ADMIN_HEADER.period}</span>
+                Supervisão em tempo real do ecossistema TimTim
               </p>
             </div>
 
@@ -125,7 +255,7 @@ export function AdminHome() {
                 className="border-border/60 text-muted-foreground hover:text-foreground flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors"
               >
                 <Calendar className="size-4" />
-                {ADMIN_HEADER.period}
+                Tempo real
               </button>
               <button
                 type="button"
@@ -141,8 +271,8 @@ export function AdminHome() {
 
         {/* KPIs */}
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {ADMIN_KPIS.map((kpi) => {
-            const Icon = KPI_ICONS[kpi.icon] ?? UsersRound
+          {kpiCards.map((kpi) => {
+            const Icon = kpi.icon
             return (
               <div
                 key={kpi.id}
@@ -177,10 +307,6 @@ export function AdminHome() {
                   {kpi.value}
                 </p>
                 <p className="text-muted-foreground mt-2 text-sm">{kpi.label}</p>
-                <p className="text-primary mt-3 flex items-center gap-1.5 text-xs">
-                  <ArrowUpRight className="size-3.5" />
-                  {kpi.delta}
-                </p>
               </div>
             )
           })}
@@ -196,7 +322,7 @@ export function AdminHome() {
                 <span className="border-destructive/40 bg-destructive/10 text-destructive rounded-md border px-2 py-0.5 text-[0.65rem] font-semibold tracking-wider uppercase">
                   Arbitragem
                 </span>
-                <span className="text-primary text-sm">{ADMIN_DISPUTES.length} abertas</span>
+                <span className="text-primary text-sm">{disputes.length} abertas</span>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -207,20 +333,19 @@ export function AdminHome() {
                   <Filter className="size-3.5" />
                   Filtrar
                 </button>
-                <button
-                  type="button"
-                  onClick={() => flash('Lista completa em breve')}
-                  className="text-muted-foreground hover:text-foreground text-xs transition-colors"
-                >
-                  Ver todas
-                </button>
               </div>
             </div>
 
             <div className="mt-5 space-y-3">
-              {ADMIN_DISPUTES.map((dispute) => {
-                const meta = DISPUTE_SEVERITY_META[dispute.severity]
-                const SevIcon = SEVERITY_ICONS[meta.icon] ?? TriangleAlert
+              {disputes.length === 0 && (
+                <p className="text-muted-foreground py-10 text-center text-sm">
+                  Nenhuma disputa em aberto no momento.
+                </p>
+              )}
+              {disputes.map((dispute) => {
+                const meta = SEVERITY_META[dispute.severity] ?? SEVERITY_META.baixo
+                const SevIcon = meta.icon
+                const sla = formatSla(dispute.deadline_at)
                 return (
                   <div
                     key={dispute.id}
@@ -244,7 +369,7 @@ export function AdminHome() {
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-foreground font-semibold">
-                              {dispute.contract}
+                              Contrato {dispute.contract_code}
                             </span>
                             <span
                               className={cn(
@@ -255,9 +380,14 @@ export function AdminHome() {
                               {meta.label}
                             </span>
                           </div>
-                          <p className="text-foreground mt-1 text-sm">{dispute.parties}</p>
+                          <p className="text-foreground mt-1 text-sm">
+                            {dispute.opened_by_name} vs {dispute.respondent_name}
+                          </p>
                           <p className="text-muted-foreground text-xs">
-                            {dispute.openedAgo} · Valor em disputa: {dispute.disputeValue}
+                            {formatOpenedAgo(dispute.created_at)}
+                            {dispute.dispute_value
+                              ? ` · Valor em disputa: ${formatCurrency(Number.parseFloat(dispute.dispute_value))}`
+                              : ''}
                           </p>
                           <p className="text-muted-foreground mt-2 max-w-xl text-xs leading-relaxed">
                             {dispute.description}
@@ -266,27 +396,29 @@ export function AdminHome() {
                             <span
                               className={cn(
                                 'flex items-center gap-1.5',
-                                dispute.slaUrgent ? 'text-destructive' : meta.dotClass,
+                                sla.urgent ? 'text-destructive' : meta.dotClass,
                               )}
                             >
                               <span
                                 className={cn(
                                   'size-1.5 rounded-full',
-                                  dispute.slaUrgent ? 'bg-destructive' : 'bg-current',
+                                  sla.urgent ? 'bg-destructive' : 'bg-current',
                                 )}
                               />
-                              {dispute.sla}
+                              {sla.label}
                             </span>
                             <span className="text-muted-foreground flex items-center gap-1.5">
                               <MessageSquare className="size-3.5" />
-                              {dispute.messages} mensagens
+                              {dispute.events_count} evento{dispute.events_count === 1 ? '' : 's'}
                             </span>
                           </div>
                         </div>
                       </div>
                       <button
                         type="button"
-                        onClick={() => flash(`Canal de mediação do ${dispute.contract} em breve`)}
+                        onClick={() =>
+                          flash(`Canal de mediação do contrato ${dispute.contract_code} em breve`)
+                        }
                         className="border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 hidden shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors sm:flex"
                       >
                         <ArrowUpRight className="size-3.5" />
@@ -306,35 +438,29 @@ export function AdminHome() {
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-lg font-semibold">Atividade do Ecossistema</h2>
                 <span className="border-primary/30 bg-primary/5 text-primary rounded-md border px-2 py-0.5 text-[0.65rem] font-medium">
-                  2025
+                  6 meses
                 </span>
               </div>
               <p className="text-muted-foreground mt-1 text-xs">
-                Eventos ativos gerenciados por mês
+                Eventos criados na plataforma por mês
               </p>
               <ChartContainer config={chartConfig} className="mt-4 h-[180px] w-full">
-                <BarChart
-                  data={ECOSYSTEM_ACTIVITY}
-                  margin={{ top: 8, right: 4, bottom: 0, left: -20 }}
-                >
+                <BarChart data={activity} margin={{ top: 8, right: 4, bottom: 0, left: -20 }}>
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.4} />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} className="text-xs" />
-                  <YAxis
+                  <XAxis
+                    dataKey="month"
+                    tickFormatter={monthLabel}
                     tickLine={false}
                     axisLine={false}
-                    ticks={[0, 50, 100]}
                     className="text-xs"
                   />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                    {ECOSYSTEM_ACTIVITY.map((entry, i) => (
+                  <YAxis tickLine={false} axisLine={false} className="text-xs" />
+                  <Bar dataKey="events_count" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                    {activity.map((entry, i) => (
                       <Cell
                         key={entry.month}
-                        fill={
-                          i === ECOSYSTEM_ACTIVITY.length - 1
-                            ? 'var(--color-value)'
-                            : 'var(--color-value)'
-                        }
-                        fillOpacity={i === ECOSYSTEM_ACTIVITY.length - 1 ? 1 : 0.55}
+                        fill="var(--color-events_count)"
+                        fillOpacity={i === activity.length - 1 ? 1 : 0.55}
                       />
                     ))}
                   </Bar>
@@ -352,8 +478,8 @@ export function AdminHome() {
                 </span>
               </div>
               <div className="mt-5 space-y-5">
-                {PLATFORM_HEALTH.map((m) => {
-                  const Icon = HEALTH_ICONS[m.icon] ?? Activity
+                {healthMetrics.map((m) => {
+                  const Icon = m.icon
                   return (
                     <div key={m.id}>
                       <div className="flex items-center justify-between text-sm">
@@ -394,36 +520,42 @@ export function AdminHome() {
             <section className="border-border/60 bg-card/40 rounded-2xl border p-6">
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-lg font-semibold">Top Fornecedores</h2>
-                <button
-                  type="button"
-                  onClick={() => flash('Ranking completo em breve')}
-                  className="text-muted-foreground hover:text-foreground text-xs transition-colors"
-                >
-                  Ver ranking
-                </button>
               </div>
               <div className="mt-4 space-y-1">
-                {ADMIN_TOP_VENDORS.map((v) => {
-                  const Icon = VENDOR_ICONS[v.icon] ?? Camera
+                {topVendors.length === 0 && (
+                  <p className="text-muted-foreground py-4 text-center text-sm">
+                    Nenhum contrato fechado ainda.
+                  </p>
+                )}
+                {topVendors.map((v, i) => {
+                  const Icon = VENDOR_ICONS[v.category_name ?? ''] ?? Camera
                   return (
                     <div
-                      key={v.rank}
+                      key={v.provider_id}
                       className="border-border/40 flex items-center gap-3 border-b py-3 last:border-0"
                     >
-                      <span className="text-muted-foreground text-sm font-semibold">#{v.rank}</span>
+                      <span className="text-muted-foreground text-sm font-semibold">#{i + 1}</span>
                       <span className="bg-muted/40 text-primary grid size-9 place-items-center rounded-lg">
                         <Icon className="size-4" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-foreground truncate text-sm font-medium">{v.name}</p>
-                        <p className="text-muted-foreground truncate text-xs">{v.category}</p>
+                        <p className="text-foreground truncate text-sm font-medium">
+                          {v.provider_name}
+                        </p>
+                        <p className="text-muted-foreground truncate text-xs">
+                          {v.category_name ?? '—'}
+                        </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-foreground text-sm font-semibold">{v.amount}</p>
-                        <p className="text-muted-foreground flex items-center justify-end gap-1 text-xs">
-                          <Star className="size-3 fill-yellow-500 text-yellow-500" />
-                          {v.rating}
+                        <p className="text-foreground text-sm font-semibold">
+                          {formatCurrency(Number.parseFloat(v.total_revenue))}
                         </p>
+                        {v.avg_rating !== null && (
+                          <p className="text-muted-foreground flex items-center justify-end gap-1 text-xs">
+                            <Star className="size-3 fill-yellow-500 text-yellow-500" />
+                            {v.avg_rating}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )
