@@ -20,3 +20,8 @@ node_modules
 *.tsbuildinfo
 .eslintcache
 coverage/
+
+# Cypress
+apps/web/cypress/screenshots/
+apps/web/cypress/videos/
+apps/web/cypress/downloads/

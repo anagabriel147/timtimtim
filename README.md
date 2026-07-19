@@ -45,6 +45,7 @@ Outros papéis e detalhes em [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
 - [`UPGRADE.md`](UPGRADE.md) — rotina do dia a dia pra subir uma alteração de código pro servidor já no ar
 - [`docs/DEPLOY-MANUAL.md`](docs/DEPLOY-MANUAL.md) — o mesmo processo, 100% manual pelo navegador (sem AWS CLI, sem scripts) — fallback pra quando as ferramentas do dia a dia não estiverem disponíveis
 - [`apps/web/docs/ARCHITECTURE.md`](apps/web/docs/ARCHITECTURE.md) — convenções internas do frontend
+- [`apps/web/cypress/README.md`](apps/web/cypress/README.md) — testes E2E (Cypress), como rodar e gotchas conhecidos
 
 ## Scripts
 

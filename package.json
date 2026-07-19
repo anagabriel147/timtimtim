@@ -11,7 +11,8 @@
     "typecheck": "pnpm --filter web typecheck",
     "format": "pnpm --filter web format",
     "format:check": "pnpm --filter web format:check",
-    "check": "pnpm --filter web check"
+    "check": "pnpm --filter web check",
+    "test:e2e": "pnpm --filter web cypress:run"
   },
   "pnpm": {
     "overrides": {
