@@ -13,7 +13,9 @@ pacotes com `package.json`, então ele simplesmente ignora esta pasta.
 apps/api/
 ├── .venv/            ambiente virtual (não versionado)
 ├── requirements.txt
+├── requirements-dev.txt  requirements.txt + pytest/httpx (não vai pra imagem Docker)
 ├── timtim.db         SQLite (não versionado, gerado no primeiro start/seed)
+├── tests/            testes automatizados — ver tests/README.md
 └── app/
     ├── main.py          instância do FastAPI, CORS, registro de routers
     ├── db.py            engine, sessão, Base declarativa
@@ -43,6 +45,16 @@ desenvolvimento, apague `timtim.db` e rode o seed de novo.
 
 Variáveis de ambiente (ver `.env.example`): `DATABASE_URL`, `SECRET_KEY`,
 `ACCESS_TOKEN_EXPIRE_MINUTES`.
+
+## Testes
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+92 testes, banco SQLite dedicado e isolado (nada a ver com `timtim.db`/seed).
+Detalhes e convenções em [`tests/README.md`](tests/README.md).
 
 ## Documentação completa
 
